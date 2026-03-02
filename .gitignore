@@ -1,0 +1,75 @@
+# === Python 生成文件 ===
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C 扩展
+*.so
+*.pyd
+
+# 虚拟环境 / Conda 环境目录
+.venv/
+venv/
+env/
+.env/
+.conda/
+.hypothesis/
+
+# 构建 / 发布产物
+build/
+dist/
+*.egg-info/
+*.egg
+pip-wheel-metadata/
+
+# 单元测试 / 覆盖率 / 缓存
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.dmypy.json
+.pyre/
+.cache/
+
+# IDE / 编辑器配置
+.vscode/
+.idea/
+*.swp
+*.swo
+*.iml
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS 级别垃圾文件
+.DS_Store
+Thumbs.db
+
+# 日志 / 临时文件
+*.log
+logs/
+tmp/
+temp/
+.server_cache/
+.storyline/.server_cache/
+
+# 本项目可能产生的大文件目录
+outputs/
+renders/
+checkpoints/
+models/
+project/
+
+# 环境/配置的敏感信息（你如果用 .env 管 secret）
+.env.local
+.env.*.local
+
+data/**
+!data/elements_v2/
+!data/elements_v2/**
+!data/prompts/
+!data/prompts/**
+resource/**

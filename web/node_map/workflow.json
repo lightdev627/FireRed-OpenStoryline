@@ -1,0 +1,712 @@
+{
+  "workflow_meta": {
+    "id": "video_editing_pipeline",
+    "name": "Video Editing Workflow",
+    "description": "Automated video editing pipeline node map, including pro/normal nodes"
+  },
+  "nodes": [
+    {
+      "id": "load_media",
+      "name": "Load Media",
+      "kind": "load_media",
+      "pro": false,
+      "description": "Loads and indexes input media. Entry point with no dependencies; required by all downstream operations.",
+      "dependencies": [],
+      "next_nodes": [
+        "split_shots"
+      ],
+      "input_schema": [
+        {
+          "name": "mode",
+          "type": "Enum",
+          "options": [
+            "auto",
+            "skip",
+            "default"
+          ],
+          "description": "auto: Automatic mode; skip: Skip mode; default: Default mode",
+          "default": "auto"
+        }
+      ],
+      "output_schema": [
+        {
+          "name": "media",
+          "type": "List[Media]",
+          "description": "List of media objects with metadata"
+        }
+      ]
+    },
+    {
+      "id": "search_media",
+      "name": "Search Media",
+      "kind": "search_media",
+      "pro": false,
+      "description": "Search media from external sources (e.g., Pexels).",
+      "dependencies": [],
+      "next_nodes": [
+        "load_media"
+      ],
+      "input_schema": [
+        {
+          "name": "mode",
+          "type": "Enum",
+          "options": [
+            "auto",
+            "skip",
+            "default"
+          ],
+          "description": "auto: Automatically search media from pexels; skip: skip search; default: skip search",
+          "default": "auto"
+        },
+        {
+          "name": "search_keyword",
+          "type": "String",
+          "description": "Keywords of the media the user wants to obtain",
+          "default": "scenery"
+        },
+        {
+          "name": "video_number",
+          "type": "Integer",
+          "description": "The number of videos the user wants to obtain",
+          "default": 5
+        },
+        {
+          "name": "photo_number",
+          "type": "Integer",
+          "description": "The number of images the user wants to obtain",
+          "default": 0
+        },
+        {
+          "name": "orientation",
+          "type": "Enum",
+          "options": [
+            "landscape",
+            "portrait"
+          ],
+          "description": "landscape: wider horizontally; portrait: higher vertically",
+          "default": "landscape"
+        },
+        {
+          "name": "min_video_duration",
+          "type": "Integer",
+          "description": "The shortest duration of footage requested by the user (seconds)",
+          "default": 1
+        },
+        {
+          "name": "max_video_duration",
+          "type": "Integer",
+          "description": "The longest duration of footage requested by the user (seconds)",
+          "default": 30
+        }
+      ],
+      "output_schema": [
+        {
+          "name": "media",
+          "type": "List[Media]",
+          "description": "Retrieved media objects"
+        }
+      ]
+    },
+    {
+      "id": "split_shots",
+      "name": "Split Shots",
+      "kind": "split_shots",
+      "pro": false,
+      "description": "Automatically segment videos into shots based on scene changes; treat images as single shots.",
+      "dependencies": [
+        "load_media"
+      ],
+      "next_nodes": [
+        "understand_clips"
+      ],
+      "input_schema": [
+        {
+          "name": "mode",
+          "type": "Enum",
+          "options": [
+            "auto",
+            "skip",
+            "default"
+          ],
+          "description": "auto: Automatically segment shots based on scene changes, treat images as single shots; skip: Do not segment shots; default: Use default segmentation method",
+          "default": "auto"
+        },
+        {
+          "name": "min_shot_duration",
+          "type": "Integer",
+          "description": "Segmented shots must not be shorter than this duration (milliseconds)",
+          "default": 1000
+        },
+        {
+          "name": "max_shot_duration",
+          "type": "Integer",
+          "description": "If a single shot exceeds this duration, force segmentation (milliseconds)",
+          "default": 10000
+        }
+      ],
+      "output_schema": [
+        {
+          "name": "clip_captions",
+          "type": "List[Clip]",
+          "description": "List of clips after splitting shots"
+        },
+        {
+          "name": "overall",
+          "type": "Dict[String,String]",
+          "description": "Overall summary/metadata (key-value)"
+        }
+      ]
+    },
+    {
+      "id": "understand_clips",
+      "name": "Understand Clips",
+      "kind": "understand_clips",
+      "pro": false,
+      "description": "Generate descriptions/captions for each clip based on media content.",
+      "dependencies": [
+        "split_shots"
+      ],
+      "next_nodes": [
+        "filter_clips",
+        "recommend_script_template"
+      ],
+      "input_schema": [
+        {
+          "name": "mode",
+          "type": "Enum",
+          "options": [
+            "auto",
+            "skip",
+            "default"
+          ],
+          "description": "auto: Generate descriptions based on media content; skip: Do not generate descriptions; default: Use default description generation method",
+          "default": "auto"
+        }
+      ],
+      "output_schema": [
+        {
+          "name": "clip_captions",
+          "type": "List[Clip]",
+          "description": "List of clips after understanding clips"
+        },
+        {
+          "name": "overall",
+          "type": "Dict[String,String]",
+          "description": "Overall summary/metadata (key-value)"
+        }
+      ]
+    },
+    {
+      "id": "filter_clips",
+      "name": "Filter Clips",
+      "kind": "filter_clips",
+      "pro": false,
+      "description": "Filter clips based on user requirements.",
+      "dependencies": [
+        "understand_clips"
+      ],
+      "next_nodes": [
+        "group_clips"
+      ],
+      "input_schema": [
+        {
+          "name": "mode",
+          "type": "Enum",
+          "options": [
+            "auto",
+            "skip",
+            "default"
+          ],
+          "description": "auto: Filter clips based on user requirements; skip: Skip filtering; default: Use default filtering method",
+          "default": "auto"
+        },
+        {
+          "name": "user_request",
+          "type": "String",
+          "description": "User's requirements for clip filtering; if none provided, formulate one based on materials and other editing requirements.",
+          "default": ""
+        }
+      ],
+      "output_schema": [
+        {
+          "name": "clip_captions",
+          "type": "List[Clip]",
+          "description": "List of clips"
+        },
+        {
+          "name": "overall",
+          "type": "Dict[String,String]",
+          "description": "Overall summary/metadata (key-value)"
+        }
+      ]
+    },
+    {
+      "id": "group_clips",
+      "name": "Group Clips",
+      "kind": "group_clips",
+      "pro": false,
+      "description": "Organize clips into narrative groups and arrange playback order.",
+      "dependencies": [
+        "filter_clips"
+      ],
+      "next_nodes": [
+        "generate_script"
+      ],
+      "input_schema": [
+        {
+          "name": "mode",
+          "type": "Enum",
+          "options": [
+            "auto",
+            "skip",
+            "default"
+          ],
+          "description": "auto: Organize clips in a logical order based on narrative flow and user's sequencing requirements; skip: Skip sorting; default: Use default ordering method",
+          "default": "auto"
+        },
+        {
+          "name": "user_request",
+          "type": "String",
+          "description": "User's requirements for media organization order; if none provided, arrange in a logical narrative sequence following standard conventions.",
+          "default": ""
+        }
+      ],
+      "output_schema": [
+        {
+          "name": "groups",
+          "type": "List[GroupClips]",
+          "description": "List of clip groups with ordering and summaries"
+        }
+      ]
+    },
+    {
+      "id": "generate_script",
+      "name": "Generate Script",
+      "kind": "generate_script",
+      "pro": false,
+      "description": "Generate script/subtitles for each group; supports passing a custom_script override (subtitle_units removed).",
+      "dependencies": [
+        "group_clips"
+      ],
+      "next_nodes": [
+        "generate_voiceover",
+        "recommend_text"
+      ],
+      "input_schema": [
+        {
+          "name": "mode",
+          "type": "Enum",
+          "options": [
+            "auto",
+            "skip",
+            "default"
+          ],
+          "description": "auto: Generate appropriate script based on media content and user's script requirements; skip: Skip, do not add subtitles; default: Use default script",
+          "default": "auto"
+        },
+        {
+          "name": "user_request",
+          "type": "String",
+          "description": "User's requirements for the script.",
+          "default": ""
+        },
+        {
+          "name": "custom_script",
+          "type": "Dict[String,Any]",
+          "description": "If user has specific character-level editing requirements for script/title, pass the edited custom script and title through this parameter. Format should be based on the original script generation output format but with the subtitle_units field removed. In this case, mode must use `auto`, other modes are prohibited.",
+          "default": {}
+        }
+      ],
+      "output_schema": [
+        {
+          "name": "group_scripts",
+          "type": "List[GroupScript]",
+          "description": "Group-level script content including subtitle units"
+        },
+        {
+          "name": "title",
+          "type": "Optional[String]",
+          "description": "Optional generated title"
+        }
+      ]
+    },
+    {
+      "id": "recommend_script_template",
+      "name": "Recommend Script Template",
+      "kind": "recommend_script_template",
+      "pro": false,
+      "description": "Recommend/select a copywriting template based on material content and user's requirements. (Output schema not defined in the provided schema file.)",
+      "dependencies": [
+        "understand_clips"
+      ],
+      "next_nodes": [],
+      "input_schema": [
+        {
+          "name": "mode",
+          "type": "Enum",
+          "options": [
+            "auto",
+            "skip",
+            "default"
+          ],
+          "description": "auto: Select an appropriate copywriting template based on the material content and user's requirements for voiceover style; skip: Skip;",
+          "default": "auto"
+        },
+        {
+          "name": "user_request",
+          "type": "String",
+          "description": "User's specific requirements for the script style.",
+          "default": ""
+        },
+        {
+          "name": "filter_include",
+          "type": "Dict[String,List[String]]",
+          "description": "Positive filter conditions. Multiple dimensions are combined with AND, multiple values within the same dimension are combined with OR. Supported dimensions: tags (one or more of [Life, Food, Beauty, Entertainment, Travel, Tech, Business, Vehicle, Health, Family, Pets, Knowledge]).",
+          "default": {}
+        },
+        {
+          "name": "filter_exclude",
+          "type": "Dict[String,List[String]]",
+          "description": "Negative filter conditions. Items matching these conditions will be excluded. Supported dimensions: tags, id.",
+          "default": {}
+        }
+      ],
+      "output_schema": []
+    },
+    {
+      "id": "generate_voiceover",
+      "name": "Generate Voiceover",
+      "kind": "generate_voiceover",
+      "pro": false,
+      "description": "Generate voiceover/narration items (e.g., TTS) for each group.",
+      "dependencies": [
+        "generate_script"
+      ],
+      "next_nodes": [
+        "select_bgm",
+        "plan_timeline"
+      ],
+      "input_schema": [
+        {
+          "name": "mode",
+          "type": "Enum",
+          "options": [
+            "auto",
+            "skip",
+            "default"
+          ],
+          "description": "auto: Generate appropriate voiceover based on media content and user's voice requirements; skip: Skip voiceover; default: Use default voiceover",
+          "default": "auto"
+        },
+        {
+          "name": "user_request",
+          "type": "String",
+          "description": "User's requirements for voiceover.",
+          "default": ""
+        }
+      ],
+      "output_schema": [
+        {
+          "name": "voiceover",
+          "type": "List[Voiceover]",
+          "description": "Voiceover list"
+        }
+      ]
+    },
+    {
+      "id": "select_bgm",
+      "name": "Select BGM",
+      "kind": "select_bgm",
+      "pro": false,
+      "description": "Select appropriate background music (BGM) based on material content and user requirements; supports include/exclude filters.",
+      "dependencies": [
+        "generate_script"
+      ],
+      "next_nodes": [
+        "recommend_transition",
+        "plan_timeline"
+      ],
+      "input_schema": [
+        {
+          "name": "mode",
+          "type": "Enum",
+          "options": [
+            "auto",
+            "skip",
+            "default"
+          ],
+          "description": "auto: Select appropriate music based on media content and user's music requirements; skip: Do not use music; default: Use default music",
+          "default": "auto"
+        },
+        {
+          "name": "user_request",
+          "type": "String",
+          "description": "User's requirements for background music.",
+          "default": ""
+        },
+        {
+          "name": "filter_include",
+          "type": "Dict[String,List[Union[String,Integer]]]",
+          "description": "Positive filter conditions. Supported dimensions: mood [Dynamic, Chill, Happy, Sorrow, Romantic, Calm, Excited, Healing, Inspirational]; scene [Vlog, Travel, Relaxing, Emotion, Transition, Outdoor, Cafe, Evening, Scenery, Food, Date, Club]; genre [Pop, BGM, Electronic, R&B/Soul, Hip Hop/Rap, Rock, Jazz, Folk, Classical, Chinese Style]; lang [bgm, en, zh, ko, ja]; id (int).",
+          "default": {}
+        },
+        {
+          "name": "filter_exclude",
+          "type": "Dict[String,List[Union[String,Integer]]]",
+          "description": "Negative filter conditions. Items matching these conditions will be excluded. Supported dimensions: mood, scene, genre, lang, id.",
+          "default": {}
+        }
+      ],
+      "output_schema": [
+        {
+          "name": "bgm",
+          "type": "List[BGM]",
+          "description": "BGM list"
+        }
+      ]
+    },
+    {
+      "id": "recommend_transition",
+      "name": "Recommend Transition",
+      "kind": "recommend_transition",
+      "pro": false,
+      "description": "Recommend transitions (e.g., fade in/out) at beginning and end.",
+      "dependencies": [
+        "select_bgm"
+      ],
+      "next_nodes": [
+        "render_video"
+      ],
+      "input_schema": [
+        {
+          "name": "mode",
+          "type": "Enum",
+          "options": [
+            "auto",
+            "skip",
+            "default"
+          ],
+          "description": "auto: add fade in and fade out transitions at beginning and end; skip: Do not use transitions; default: Use default transitions",
+          "default": "auto"
+        },
+        {
+          "name": "duration",
+          "type": "Integer",
+          "description": "Duration of the transition in milliseconds",
+          "default": 1000
+        }
+      ],
+      "output_schema": [
+        {
+          "name": "mode",
+          "type": "Enum",
+          "description": "auto / skip / default mode (output model is BaseInput)"
+        }
+      ]
+    },
+    {
+      "id": "recommend_text",
+      "name": "Recommend Text",
+      "kind": "recommend_text",
+      "pro": false,
+      "description": "Recommend subtitle font style/color based on user's requirements; supports include filters.",
+      "dependencies": [
+        "generate_script"
+      ],
+      "next_nodes": [
+        "render_video"
+      ],
+      "input_schema": [
+        {
+          "name": "mode",
+          "type": "Enum",
+          "options": [
+            "auto",
+            "skip",
+            "default"
+          ],
+          "description": "auto: Select appropriate font style and color based on user's subtitle font style requirements; default: Use default font",
+          "default": "auto"
+        },
+        {
+          "name": "user_request",
+          "type": "String",
+          "description": "User's requirements for font style",
+          "default": ""
+        },
+        {
+          "name": "filter_include",
+          "type": "Dict[String,List[Union[String,Integer]]]",
+          "description": "Positive filter conditions. Supported dimensions: class [Creative, Handwriting, Calligraphy, Basic].",
+          "default": {}
+        }
+      ],
+      "output_schema": [
+        {
+          "name": "mode",
+          "type": "Enum",
+          "description": "auto / skip / default mode (output model is BaseInput)"
+        }
+      ]
+    },
+    {
+      "id": "plan_timeline",
+      "name": "Plan Timeline",
+      "kind": "plan_timeline",
+      "pro": false,
+      "description": "Plan timeline tracks for video, subtitles, voiceover, and BGM; optionally sync transitions with BGM beats.",
+      "dependencies": [
+        "group_clips",
+        "generate_script",
+        "generate_voiceover",
+        "select_bgm"
+      ],
+      "next_nodes": [
+        "render_video"
+      ],
+      "input_schema": [
+        {
+          "name": "mode",
+          "type": "Enum",
+          "options": [
+            "auto",
+            "skip",
+            "default"
+          ],
+          "description": "auto: Automatic mode; skip: Skip mode; default: Default mode",
+          "default": "auto"
+        },
+        {
+          "name": "use_beats",
+          "type": "Boolean",
+          "description": "Whether clip transitions should sync with BGM beats",
+          "default": true
+        }
+      ],
+      "output_schema": [
+        {
+          "name": "tracks",
+          "type": "List[TimelineTracks]",
+          "description": "Timeline track collection"
+        }
+      ]
+    },
+    {
+      "id": "render_video",
+      "name": "Render Video",
+      "kind": "render_video",
+      "pro": false,
+      "description": "Render/export the final video with canvas, subtitle, audio, and encoding parameters. (Output schema not defined in the provided schema file.)",
+      "dependencies": [
+        "plan_timeline"
+      ],
+      "next_nodes": [],
+      "input_schema": [
+        {
+          "name": "mode",
+          "type": "Enum",
+          "options": [
+            "auto",
+            "skip",
+            "default"
+          ],
+          "description": "auto: Automatic mode; skip: Skip mode; default: Default mode",
+          "default": "auto"
+        },
+        {
+          "name": "aspect_ratio",
+          "type": "Optional[String]",
+          "description": "Canvas aspect ratio override: one of 16:9, 4:3, 1:1, 3:4, 9:16; auto if unset.",
+          "default": null
+        },
+        {
+          "name": "output_max_dimension_px",
+          "type": "Optional[Integer]",
+          "description": "Maximum output size in pixels (longest side); defaults to 1080 and works with the aspect ratio.",
+          "default": null
+        },
+        {
+          "name": "clip_compose_mode",
+          "type": "String",
+          "description": "How to fit media into the canvas: 'padding' keeps aspect ratio and fills empty areas; 'crop' center-crops media to match the canvas aspect ratio.",
+          "default": "crop"
+        },
+        {
+          "name": "bg_color",
+          "type": "Tuple[Integer,Integer,Integer] | List[Integer] | Null",
+          "description": "Background color for canvas padding, specified as an (R, G, B) tuple (no alpha channel).",
+          "default": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "crf",
+          "type": "Integer",
+          "description": "CRF value (10–30), lower = better quality, larger file",
+          "default": 23
+        },
+        {
+          "name": "font_color",
+          "type": "Tuple[Integer,Integer,Integer,Integer]",
+          "description": "Font color, RGBA format (R, G, B, A), values range 0-255",
+          "default": [
+            255,
+            255,
+            255,
+            255
+          ]
+        },
+        {
+          "name": "font_size",
+          "type": "Integer",
+          "description": "Font size in pixels. Recommended range: 28–120.",
+          "default": 40
+        },
+        {
+          "name": "margin_bottom",
+          "type": "Integer",
+          "description": "Bottom margin for subtitles in pixels. Defaults to 80; valid range: 40–600.",
+          "default": 80
+        },
+        {
+          "name": "stroke_width",
+          "type": "Integer",
+          "description": "Text stroke width (px), typically 0–8",
+          "default": 2
+        },
+        {
+          "name": "stroke_color",
+          "type": "Tuple[Integer,Integer,Integer,Integer]",
+          "description": "Text stroke color in RGBA format",
+          "default": [
+            0,
+            0,
+            0,
+            255
+          ]
+        },
+        {
+          "name": "bgm_volume_scale",
+          "type": "Float",
+          "description": "Background music volume multiplier, range 0.0–3.0 (1.0 = default volume)",
+          "default": 1.0
+        },
+        {
+          "name": "tts_volume_scale",
+          "type": "Float",
+          "description": "TTS volume multiplier, range 0.0–3.0 (1.0 = default volume)",
+          "default": 1.0
+        },
+        {
+          "name": "include_video_audio",
+          "type": "Boolean",
+          "description": "Whether to include the original video audio track",
+          "default": false
+        }
+      ],
+      "output_schema": []
+    }
+  ]
+}

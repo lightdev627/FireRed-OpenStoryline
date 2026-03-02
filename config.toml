@@ -1,0 +1,157 @@
+# ============= 开发者选项 / Developer Options ===============
+[developer]
+developer_mode = false
+default_llm = "deepseek-chat"
+default_vlm = "qwen3-vl-8b-instruct"
+print_context = false # 在拦截器打印模型拿到的全部上下文，会很长 / Print full context in interceptor (output will be very long)
+
+# ============= 模型配置 for 体验网页 ===============
+[developer.chat_models_config."deepseek-chat"]
+base_url = ""
+api_key = ""
+temperature = 0.1
+
+[developer.chat_models_config."qwen3-vl-8b-instruct"]
+base_url = ""
+api_key = "" 
+timeout = 20.0
+temperature = 0.1
+max_retries = 2
+
+# ============= 项目路径 / Project Paths ======================
+[project]
+media_dir = "./outputs/media"
+bgm_dir = "./resource/bgms"
+outputs_dir = "./outputs"
+
+# ============= 模型配置 for user / Model Config for User =============
+[llm]
+model = "deepseek-chat"
+base_url = ""
+api_key = "" 
+timeout = 30.0 # 单位：秒
+temperature = 0.1
+max_retries = 2
+
+[vlm]
+model = "qwen3-vl-8b-instruct"
+base_url = ""
+api_key = "" 
+timeout = 20.0 # 单位：秒
+temperature = 0.1
+max_retries = 2
+
+
+# ============= MCP Server 相关 / MCP Server Related =============
+[local_mcp_server]
+server_name = "storyline"
+server_cache_dir = ".storyline/.server_cache"
+server_transport = "streamable-http"  # server 和 host之间的传输方式 / Transport method between server and host
+url_scheme = "http"  
+connect_host = "127.0.0.1" # 不要改动 / Do not change
+port = 8001                # 如果端口冲突，可以随便用一个有空的端口 / Use any available port if conflict occurs
+path = "/mcp"              # 默认值，一般不用改 / Default value, usually unchanged
+
+json_response = true       # 建议用 True / Recommended: True
+stateless_http = false     # 强烈建议用 False / Strongly recommended: False
+timeout = 600
+available_node_pkgs = [
+    "open_storyline.nodes.core_nodes"
+]
+available_nodes = [
+    "LoadMediaNode", "SearchMediaNode", "SplitShotsNode",
+    "UnderstandClipsNode", "FilterClipsNode", "GroupClipsNode", "GenerateScriptNode", "ScriptTemplateRecomendation",
+    "GenerateVoiceoverNode", "SelectBGMNode", "RecommendTransitionNode", "RecommendTextNode",
+    "PlanTimelineProNode", "RenderVideoNode"
+]
+
+# =========== skills ==========
+[skills]
+skill_dir = "./.storyline/skills"
+
+# =========== pexels ==========
+[search_media]
+pexels_api_key = ""
+
+# ============= 镜头分割 / Shot Segmentation =============
+[split_shots]
+transnet_weights = ".storyline/models/transnetv2-pytorch-weights.pth"
+transnet_device = "cpu"
+
+# ============= 视频视觉理解 / Video Visual Understanding =============
+[understand_clips]
+sample_fps = 2.0                 # 每秒抽几帧 / Frames sampled per second
+max_frames = 64                  # 单clip抽帧上限兜底，避免长视频爆 token / Max frames per clip limit to prevent token overflow
+
+# ============= 文案模板 / Script Templates =============
+[script_template]
+script_template_dir = "./resource/script_templates"
+script_template_info_path = "./resource/script_templates/meta.json"
+
+# ============= 配音生成 / Voiceover Generation ===================
+[generate_voiceover]
+tts_provider_params_path = "./resource/tts/tts_providers.json"
+
+[generate_voiceover.providers.302]
+base_url = ""
+api_key = ""
+
+[generate_voiceover.providers.bytedance]
+uid = ""
+appid = ""
+access_token = ""
+
+[generate_voiceover.providers.minimax]
+base_url = ""
+api_key = ""
+
+
+# ============= BGM选择 / BGM Selection ====================
+# 主要是用于计算音乐特征的一些参数 / Mainly parameters for calculating music features
+[select_bgm]
+sample_rate = 22050
+hop_length = 2048   # 每次分析窗口向前跳多少个采样点，越小越精细（但更慢） / Hop length samples; smaller = more precise but slower
+frame_length = 2048 # 计算信号的均方根RMS的窗口大小。越大越稳定，但对瞬态不敏感 / Window size for RMS; larger = stable but less sensitive to transients
+
+# ============= 字体推荐 / Font Recommendation ====================
+[recommend_text]
+font_info_path = "resource/fonts/font_info.json"
+
+# ============= 时间线组织 / Timeline Organization ====================
+[plan_timeline]
+beat_type_max = 1 # 使用多强的鼓点，例如4/4中，鼓点类似1,2,1,3，其中1是最强的，3最弱 / Beat strength (e.g., in 4/4: 1=strongest, 3=weakest)
+title_duration = 0 # 片头时长 (ms) / Intro duration (ms)
+bgm_loop = true # 是否允许 bgm 循环 / Allow BGM loop
+min_clip_duration = 1000
+
+estimate_text_min = 1500 # 在没有TTS的情况下，估计每段字幕至少上屏多久 / Min on-screen duration for subtitles without TTS
+estimate_text_char_per_sec = 6.0 # 在没有TTS的情况下，估计每秒展示几个字 / Estimated characters per second without TTS
+
+image_default_duration = 3000 # 默认的图片播放时长 / Default image duration
+group_margin_over_voiceover = 1000 # 在一个group中，画面比配音多出现多久 / Extra visual duration over voiceover in a group
+
+[plan_timeline_pro]
+
+min_single_text_duration = 200      # 单段文字最小时长 (ms) / min single text duration (ms)
+max_text_duration        = 5000     # 单句文字最大时长 (ms) / max text sentence duration (ms)
+img_default_duration     = 1500     # 默认图片时长 (ms) / default image duration (ms)
+
+min_group_margin = 1500             # 段落/组最小间距 (ms) / min paragraph/group margin (ms)
+max_group_margin = 2000             # 段落/组最大间距 (ms) / max paragraph/group margin (ms)
+
+min_clip_duration = 1000            # 最小片段时长 (ms) / min clip duration (ms)
+
+tts_margin_mode = "random"          # random | avg | max | min
+min_tts_margin  = 300               # 最小 TTS 间隔 (ms) / min TTS gap (ms)
+max_tts_margin  = 400               # 最大 TTS 间隔 (ms) / max TTS gap (ms)
+
+text_tts_offset_mode = "random"     # random | avg | max | min
+min_text_tts_offset  = 0            # 最小文字-TTS偏移 (ms) / min text–TTS offset (ms)
+max_text_tts_offset  = 0            # 最大文字-TTS偏移 (ms) / max text–TTS offset (ms)
+
+long_short_text_duration = 3000     # 长/短文本阈值 (ms) / long/short text threshold (ms)
+long_text_margin_rate   = 0.0       # 长文本起始边距率 / long text start margin rate
+short_text_margin_rate  = 0.0       # 短文本起始边距率 / short text start margin rate
+
+text_duration_mode = "with_tts"     # with_tts | with_clip (随配音 | 随片段)
+is_text_beats      = false          # 文字对齐音乐节拍 / align text with music beats

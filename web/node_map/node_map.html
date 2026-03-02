@@ -1,0 +1,1055 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Workflow Node Map</title>
+  <style>
+    :root{
+      --bg:#0f0f0f;
+      --panel:#171717;
+      --panel2:#1f1f1f;
+      --text:#eaeaea;
+      --muted:#b5b5b5;
+      --border:#2c2c2c;
+      --edge:#8a8a8a;
+      --edge-muted:#3f3f3f;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius: 12px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      font-family:var(--sans);
+      overflow:hidden;
+    }
+
+    /* Topbar */
+    #topbar{
+      height:56px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 14px;
+      border-bottom:1px solid var(--border);
+      background:linear-gradient(to bottom, #121212, #0f0f0f);
+    }
+    #titleBlock{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      min-width: 220px;
+    }
+    #wfName{
+      font-weight:650;
+      font-size:14px;
+      letter-spacing:.2px;
+      line-height:1.1;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    #wfDesc{
+      font-size:12px;
+      color:var(--muted);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width: 54vw;
+    }
+    #controls{
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .btn{
+      appearance:none;
+      background:transparent;
+      color:var(--text);
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:8px 10px;
+      font-size:12px;
+      cursor:pointer;
+      transition:transform .05s ease, border-color .2s ease, background .2s ease;
+      user-select:none;
+    }
+    .btn:hover{ border-color:#3a3a3a; background:#141414; }
+    .btn:active{ transform: translateY(1px); }
+    .sep{ width:1px; height:20px; background:var(--border); margin:0 2px; }
+
+    #hint{
+      font-size:12px;
+      color:var(--muted);
+      user-select:none;
+      white-space:nowrap;
+    }
+
+    /* Viewport + canvas */
+    #viewport{
+      height: calc(100vh - 56px);
+      overflow:auto;
+      position:relative;
+    }
+    #canvas{
+      position:relative;
+      /*
+        IMPORTANT: the workflow can have many depth columns; nodes may extend wider/taller
+        than the initial minimum. We keep a safe base size here, and JS will expand the
+        canvas to fit all nodes so edges/arrow coordinates stay 1:1 with pixels.
+      */
+      min-width: 2600px;
+      min-height: 1600px;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+
+    /* Edges svg */
+    #edges{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      pointer-events:none;
+      overflow:visible;
+      z-index: 1;
+    }
+    .edge{
+      stroke: var(--edge);
+      stroke-width: 1.6;
+      fill: none;
+      opacity: .85;
+    }
+    .edge.dim{ opacity:.18; }
+    .edge.highlight{ opacity:1; stroke-width:2.2; }
+
+    /* Nodes */
+    .node{
+      position:absolute;
+      width: 340px;
+      background: var(--panel);
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      z-index: 2;
+      user-select:none;
+      touch-action: none;
+    }
+    .node:focus{ outline:none; box-shadow: 0 0 0 2px #3a3a3a, var(--shadow); }
+
+    .node-header{
+      padding: 12px 12px 10px;
+      border-bottom:1px solid var(--border);
+      background: var(--panel2);
+      border-top-left-radius: var(--radius);
+      border-top-right-radius: var(--radius);
+      cursor: grab;
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .node-header:active{ cursor: grabbing; }
+
+    /* Title + collapsed description stack */
+    .node-titlewrap{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      min-width:0;
+      flex: 1 1 auto;
+    }
+
+    .node-title{
+      font-weight: 650;
+      font-size: 13px;
+      line-height: 1.2;
+      letter-spacing: .2px;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+
+    /* Collapsed-state description (smaller font) */
+    .node-desc-collapsed{
+      display:none;
+      font-size: 11px;
+      line-height: 1.25;
+      color: var(--muted);
+      opacity: .92;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .node-desc-collapsed:empty{ display:none !important; }
+    .node.collapsed .node-desc-collapsed{
+      display:block; /* fallback */
+      display:-webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+
+    .node-badges{
+      display:flex;
+      align-items:center;
+      gap:6px;
+      flex: 0 0 auto;
+    }
+    .badge{
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      border:1px solid var(--border);
+      color: var(--muted);
+      background: #141414;
+      max-width: 120px;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+
+    .node-body{
+      padding: 12px;
+      display:block;
+      font-size: 12px;
+      line-height: 1.35;
+      color: var(--text);
+    }
+    .node.collapsed .node-body{
+      display:none;
+    }
+    .node.collapsed .node-header{
+      border-bottom: none;
+    }
+    .node-meta{
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 10px;
+      font-family: var(--mono);
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+    }
+    .kv{
+      border:1px solid var(--border);
+      padding: 3px 6px;
+      border-radius: 8px;
+      background:#121212;
+    }
+
+    .section{
+      margin-top: 10px;
+      border-top: 1px dashed #2e2e2e;
+      padding-top: 10px;
+    }
+    .section h4{
+      margin: 0 0 8px;
+      font-size: 11px;
+      letter-spacing: .2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 650;
+    }
+    .desc{
+      color: var(--text);
+      margin: 0 0 8px;
+      opacity: .95;
+    }
+    .pillRow{
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+    }
+    .pill{
+      font-size: 11px;
+      color: var(--muted);
+      border:1px solid var(--border);
+      background:#121212;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-family: var(--mono);
+    }
+    .empty{
+      color: var(--muted);
+      font-style: italic;
+      font-size: 11px;
+    }
+
+    table.schema{
+      width:100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      border:1px solid var(--border);
+      border-radius: 10px;
+      overflow:hidden;
+    }
+    table.schema thead th{
+      background:#121212;
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: .2px;
+      text-transform: uppercase;
+      padding: 8px 8px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 650;
+    }
+    table.schema td{
+      padding: 8px 8px;
+      border-bottom: 1px solid #242424;
+      vertical-align: top;
+      word-break: break-word;
+    }
+    table.schema tr:last-child td{ border-bottom:none; }
+    .mono{ font-family: var(--mono); }
+    .right{ text-align:right; }
+    .small{ font-size: 11px; color: var(--muted); }
+
+    /* Hover highlighting */
+    .node:hover{ border-color:#3a3a3a; }
+    .node.dragging{ opacity: .95; border-color:#4a4a4a; }
+
+    /* Loading / error */
+    #overlay{
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index: 10;
+      background: rgba(0,0,0,.35);
+      backdrop-filter: blur(3px);
+    }
+    #overlay.hidden{ display:none; }
+    #overlayCard{
+      width:min(560px, 92vw);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+    #overlayTitle{
+      font-weight: 650;
+      font-size: 14px;
+      margin:0 0 8px;
+    }
+    #overlayText{
+      margin:0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+      font-family: var(--mono);
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <div id="topbar">
+    <div id="titleBlock">
+      <div id="wfName">Workflow Node Map</div>
+      <div id="wfDesc">Reads workflow.json and renders a draggable node map (minimal grayscale).</div>
+    </div>
+
+    <div id="controls">
+      <button class="btn" id="btnExpand">Expand All</button>
+      <button class="btn" id="btnCollapse">Collapse All</button>
+      <div class="sep"></div>
+      <button class="btn" id="btnReset">Reset Layout</button>
+      <div class="sep"></div>
+      <div id="hint">Tip: drag nodes; click the header to expand/collapse.</div>
+    </div>
+  </div>
+
+  <div id="viewport">
+    <div id="canvas">
+      <svg id="edges" aria-hidden="true">
+        <defs>
+          <marker id="arrowHead" markerWidth="10" markerHeight="10" refX="8.7" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L9,3 L0,6 Z" fill="var(--edge)"></path>
+          </marker>
+        </defs>
+      </svg>
+    </div>
+
+    <div id="overlay">
+      <div id="overlayCard">
+        <p id="overlayTitle">Loading…</p>
+        <p id="overlayText">Reading JSON and rendering nodes…</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      const SVG_NS = "http://www.w3.org/2000/svg";
+
+      const viewport = document.getElementById("viewport");
+      const canvas = document.getElementById("canvas");
+      const edgesSvg = document.getElementById("edges");
+
+      const overlay = document.getElementById("overlay");
+      const overlayTitle = document.getElementById("overlayTitle");
+      const overlayText = document.getElementById("overlayText");
+
+      const wfNameEl = document.getElementById("wfName");
+      const wfDescEl = document.getElementById("wfDesc");
+
+      const btnExpand = document.getElementById("btnExpand");
+      const btnCollapse = document.getElementById("btnCollapse");
+      const btnReset = document.getElementById("btnReset");
+
+      const params = new URLSearchParams(location.search);
+      const DATA_URL = params.get("data") || "node_map/workflow.json";
+
+      const state = {
+        data: null,
+        nodesById: new Map(),
+        nodeEls: new Map(),
+        edges: [], // {from,to,el}
+        layoutKey: null,
+        saveTimer: null
+      };
+
+      function escapeHtml(s){
+        return String(s)
+          .replaceAll("&","&amp;")
+          .replaceAll("<","&lt;")
+          .replaceAll(">","&gt;")
+          .replaceAll('"',"&quot;")
+          .replaceAll("'","&#039;");
+      }
+
+      function formatValue(v){
+        if (v === undefined) return "";
+        if (v === null) return "null";
+        if (typeof v === "string") return v;
+        try { return JSON.stringify(v); } catch (e) { return String(v); }
+      }
+
+      function setOverlay(title, text, hidden){
+        overlayTitle.textContent = title || "";
+        overlayText.textContent = text || "";
+        overlay.classList.toggle("hidden", !!hidden);
+      }
+
+      function computeDepths(nodes){
+        const byId = new Map(nodes.map(n => [n.id, n]));
+        const depth = new Map(nodes.map(n => [n.id, 0]));
+
+        // Relaxation: depth(n) = max(depth(dep)+1)
+        const MAX_ITERS = nodes.length + 5;
+        for(let i=0;i<MAX_ITERS;i++){
+          let changed = false;
+          for(const n of nodes){
+            const deps = Array.isArray(n.dependencies) ? n.dependencies : [];
+            if(!deps.length) continue;
+            let maxD = 0;
+            for(const depId of deps){
+              if(!byId.has(depId)) continue;
+              maxD = Math.max(maxD, (depth.get(depId) || 0) + 1);
+            }
+            if(maxD !== (depth.get(n.id) || 0)){
+              depth.set(n.id, maxD);
+              changed = true;
+            }
+          }
+          if(!changed) break;
+        }
+        return depth;
+      }
+
+      function autoLayout(nodes){
+        const depth = computeDepths(nodes);
+        const cols = new Map(); // depth -> array of node ids
+        for(const n of nodes){
+          const d = depth.get(n.id) || 0;
+          if(!cols.has(d)) cols.set(d, []);
+          cols.get(d).push(n.id);
+        }
+        // Stable sort by name within each column
+        for(const [d, arr] of cols){
+          arr.sort((a,b)=>{
+            const na = state.nodesById.get(a)?.name || a;
+            const nb = state.nodesById.get(b)?.name || b;
+            return na.localeCompare(nb);
+          });
+        }
+
+        const columnWidth = 420;
+        const rowHeight = 170;
+
+        const positions = {};
+        const depths = Array.from(cols.keys()).sort((a,b)=>a-b);
+        for(const d of depths){
+          const arr = cols.get(d);
+          for(let i=0;i<arr.length;i++){
+            const id = arr[i];
+            positions[id] = {
+              x: 40 + d * columnWidth,
+              y: 40 + i * rowHeight
+            };
+          }
+        }
+        return positions;
+      }
+
+      // Ensure the scrollable canvas is big enough to contain all nodes.
+      // This avoids SVG scaling issues (arrows not landing on cards) and keeps
+      // the whole graph reachable via scroll.
+      function ensureCanvasSize(){
+        const BASE_W = 2600;
+        const BASE_H = 1600;
+        const EXTRA = 260; // breathing room to the right/bottom
+
+        if(!state.nodeEls || state.nodeEls.size === 0) return;
+
+        let maxRight = 0;
+        let maxBottom = 0;
+
+        for(const el of state.nodeEls.values()){
+          const left = parseFloat(el.style.left || "0") || 0;
+          const top = parseFloat(el.style.top || "0") || 0;
+          const right = left + el.offsetWidth;
+          const bottom = top + el.offsetHeight;
+          maxRight = Math.max(maxRight, right);
+          maxBottom = Math.max(maxBottom, bottom);
+        }
+
+        const desiredW = Math.max(BASE_W, Math.ceil(maxRight + EXTRA));
+        const desiredH = Math.max(BASE_H, Math.ceil(maxBottom + EXTRA));
+
+        // Only expand; do not shrink automatically to avoid jarring jumps.
+        const currentW = canvas.clientWidth || 0;
+        const currentH = canvas.clientHeight || 0;
+
+        if(desiredW > currentW) canvas.style.width = desiredW + "px";
+        if(desiredH > currentH) canvas.style.height = desiredH + "px";
+      }
+
+      function loadLayout(){
+        if(!state.layoutKey) return null;
+        try{
+          const raw = localStorage.getItem(state.layoutKey);
+          if(!raw) return null;
+          return JSON.parse(raw);
+        }catch(e){
+          return null;
+        }
+      }
+
+      function saveLayoutDebounced(){
+        if(!state.layoutKey) return;
+        clearTimeout(state.saveTimer);
+        state.saveTimer = setTimeout(saveLayout, 120);
+      }
+
+      function saveLayout(){
+        if(!state.layoutKey) return;
+        const positions = {};
+        const collapsed = {};
+        for(const [id, el] of state.nodeEls){
+          positions[id] = {
+            x: parseFloat(el.style.left || "0"),
+            y: parseFloat(el.style.top || "0")
+          };
+          collapsed[id] = el.classList.contains("collapsed");
+        }
+        const payload = { positions, collapsed };
+        try{
+          localStorage.setItem(state.layoutKey, JSON.stringify(payload));
+        }catch(e){
+          // ignore quota errors
+        }
+      }
+
+      function resetLayout(){
+        if(state.layoutKey){
+          localStorage.removeItem(state.layoutKey);
+        }
+        const positions = autoLayout(state.data.nodes);
+        for(const n of state.data.nodes){
+          const el = state.nodeEls.get(n.id);
+          if(!el) continue;
+          const p = positions[n.id] || {x:40,y:40};
+          el.style.left = p.x + "px";
+          el.style.top = p.y + "px";
+        }
+        ensureCanvasSize();
+        updateAllEdges();
+      }
+
+      function schemaTable(schema){
+        if(!Array.isArray(schema) || schema.length === 0){
+          return '<div class="empty">—</div>';
+        }
+        const rows = schema.map(f => {
+          const name = escapeHtml(f.name ?? "");
+          const type = escapeHtml(f.type ?? "");
+          const def = escapeHtml(formatValue(f.default ?? ""));
+          const opts = Array.isArray(f.options) ? escapeHtml(f.options.join(", ")) : "";
+          const desc = escapeHtml(f.description ?? "");
+          return `<tr>
+            <td class="mono">${name}</td>
+            <td class="mono">${type}</td>
+            <td class="mono">${def}</td>
+            <td class="mono">${opts}</td>
+            <td>${desc}</td>
+          </tr>`;
+        }).join("");
+        return `<table class="schema">
+          <thead><tr>
+            <th class="right">name</th>
+            <th>type</th>
+            <th>default</th>
+            <th>options</th>
+            <th>description</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+      }
+
+      function pillList(ids){
+        if(!Array.isArray(ids) || ids.length === 0){
+          return '<div class="empty">—</div>';
+        }
+        const pills = ids.map(id => `<span class="pill">${escapeHtml(id)}</span>`).join("");
+        return `<div class="pillRow">${pills}</div>`;
+      }
+
+      function nodeBodyHtml(node){
+        const meta = `
+          <div class="node-meta">
+            <span class="kv">id: ${escapeHtml(node.id)}</span>
+            <span class="kv">kind: ${escapeHtml(node.kind ?? "")}</span>
+            <span class="kv">pro: ${node.pro ? "true" : "false"}</span>
+          </div>
+        `;
+
+        const desc = node.description ? `<p class="desc">${escapeHtml(node.description)}</p>` : '';
+
+        const deps = `
+          <div class="section">
+            <h4>Dependencies</h4>
+            ${pillList(node.dependencies)}
+          </div>
+        `;
+
+        const nexts = `
+          <div class="section">
+            <h4>Next Nodes</h4>
+            ${pillList(node.next_nodes)}
+          </div>
+        `;
+
+        const input = `
+          <div class="section">
+            <h4>Input Schema</h4>
+            ${schemaTable(node.input_schema)}
+          </div>
+        `;
+
+        const output = `
+          <div class="section">
+            <h4>Output Schema</h4>
+            ${schemaTable(node.output_schema)}
+          </div>
+        `;
+
+        return meta + desc + deps + nexts + input + output;
+      }
+
+      function createNodeEl(node){
+        const el = document.createElement("div");
+        el.className = "node collapsed";
+        el.tabIndex = 0;
+        el.dataset.id = node.id;
+
+        const header = document.createElement("div");
+        header.className = "node-header";
+
+        const titleWrap = document.createElement("div");
+        titleWrap.className = "node-titlewrap";
+
+        const title = document.createElement("div");
+        title.className = "node-title";
+        title.textContent = node.name || node.id;
+
+        const descCollapsed = document.createElement("div");
+        descCollapsed.className = "node-desc-collapsed";
+        descCollapsed.textContent = node.description || "";
+
+        titleWrap.appendChild(title);
+        titleWrap.appendChild(descCollapsed);
+
+        const badges = document.createElement("div");
+        badges.className = "node-badges";
+        // Badges intentionally hidden in collapsed state requirement: keep only tool name visible.
+        // We show badges only when expanded, by toggling their visibility in JS.
+        const badgeKind = document.createElement("span");
+        badgeKind.className = "badge";
+        badgeKind.textContent = node.kind || "node";
+        const badgePro = document.createElement("span");
+        badgePro.className = "badge";
+        badgePro.textContent = node.pro ? "PRO" : "NORMAL";
+        badges.appendChild(badgeKind);
+        badges.appendChild(badgePro);
+
+        header.appendChild(titleWrap);
+        header.appendChild(badges);
+
+        const body = document.createElement("div");
+        body.className = "node-body";
+        body.innerHTML = nodeBodyHtml(node);
+
+        el.appendChild(header);
+        el.appendChild(body);
+
+        // Collapsed view: hide badges; keep title + description visible.
+        badges.style.display = "none";
+
+        attachDragAndToggle(el, header, badges);
+
+        // Hover highlights
+        el.addEventListener("mouseenter", () => highlightConnections(node.id, true));
+        el.addEventListener("mouseleave", () => highlightConnections(node.id, false));
+
+        return el;
+      }
+
+      function setCollapsed(el, collapsed){
+        const header = el.querySelector(".node-header");
+        const badges = header.querySelector(".node-badges");
+        el.classList.toggle("collapsed", !!collapsed);
+        badges.style.display = collapsed ? "none" : "flex";
+      }
+
+      function toggleNode(el){
+        const collapsed = el.classList.contains("collapsed");
+        setCollapsed(el, !collapsed);
+        // Expanding/collapsing changes node height; keep the canvas large enough.
+        ensureCanvasSize();
+        // Canvas/SVG size may change, so update all edges (also refreshes SVG viewBox).
+        updateAllEdges();
+        saveLayoutDebounced();
+      }
+
+      function attachDragAndToggle(el, header, badges){
+        let startX = 0, startY = 0;
+        let originLeft = 0, originTop = 0;
+        let dragging = false;
+
+        const DRAG_THRESHOLD = 4;
+
+        header.addEventListener("pointerdown", (e) => {
+          if(e.button !== 0) return;
+          header.setPointerCapture(e.pointerId);
+          dragging = false;
+          startX = e.clientX;
+          startY = e.clientY;
+
+          const canvasRect = canvas.getBoundingClientRect();
+          const rect = el.getBoundingClientRect();
+          originLeft = rect.left - canvasRect.left;
+          originTop = rect.top - canvasRect.top;
+
+          el.classList.add("dragging");
+          e.preventDefault();
+        });
+
+        header.addEventListener("pointermove", (e) => {
+          if(!header.hasPointerCapture(e.pointerId)) return;
+
+          const dx = e.clientX - startX;
+          const dy = e.clientY - startY;
+
+          if(!dragging && (Math.abs(dx) + Math.abs(dy) > DRAG_THRESHOLD)){
+            dragging = true;
+          }
+
+          if(dragging){
+            // Keep nodes inside the 0,0 quadrant so the scroll area is always reachable.
+            const newLeft = Math.max(0, originLeft + dx);
+            const newTop = Math.max(0, originTop + dy);
+            el.style.left = newLeft + "px";
+            el.style.top = newTop + "px";
+            updateEdgesForNode(el.dataset.id);
+          }
+        });
+
+        function endPointer(e){
+          if(!header.hasPointerCapture(e.pointerId)) return;
+          header.releasePointerCapture(e.pointerId);
+          el.classList.remove("dragging");
+
+          if(!dragging){
+            // Click without drag -> toggle
+            toggleNode(el);
+          }else{
+            // Dragging may move nodes beyond current canvas bounds.
+            ensureCanvasSize();
+            saveLayoutDebounced();
+          }
+        }
+
+        header.addEventListener("pointerup", endPointer);
+        header.addEventListener("pointercancel", endPointer);
+
+        // Keyboard toggle
+        el.addEventListener("keydown", (e) => {
+          if(e.key === "Enter" || e.key === " "){
+            e.preventDefault();
+            toggleNode(el);
+          }
+        });
+      }
+
+      function addEdge(fromId, toId, dedupe){
+        if(!state.nodesById.has(fromId) || !state.nodesById.has(toId)) return;
+        const key = fromId + "→" + toId;
+        if(dedupe.has(key)) return;
+        dedupe.add(key);
+
+        const path = document.createElementNS(SVG_NS, "path");
+        path.classList.add("edge");
+        path.setAttribute("marker-end", "url(#arrowHead)");
+        path.dataset.from = fromId;
+        path.dataset.to = toId;
+        edgesSvg.appendChild(path);
+
+        state.edges.push({ from: fromId, to: toId, el: path });
+      }
+
+      function buildEdges(){
+        // Remove existing
+        state.edges = [];
+        // Keep defs (arrow marker)
+        const defs = edgesSvg.querySelector("defs");
+        edgesSvg.innerHTML = "";
+        edgesSvg.appendChild(defs);
+
+        const dedupe = new Set();
+        for(const node of state.data.nodes){
+          const deps = Array.isArray(node.dependencies) ? node.dependencies : [];
+          for(const depId of deps){
+            addEdge(depId, node.id, dedupe);
+          }
+          const nexts = Array.isArray(node.next_nodes) ? node.next_nodes : [];
+          for(const nxt of nexts){
+            addEdge(node.id, nxt, dedupe);
+          }
+        }
+      }
+
+      function rectInCanvas(el){
+        /*
+          IMPORTANT:
+          Use the SVG element as the coordinate reference, not `canvas.scrollWidth`.
+          If the workflow spans wider than the base canvas size, using scrollWidth in
+          the SVG viewBox would introduce a scale factor and arrows would drift away
+          from cards.
+
+          Here we measure everything in CSS pixels relative to the SVG viewport.
+        */
+        const svgRect = edgesSvg.getBoundingClientRect();
+        const r = el.getBoundingClientRect();
+
+        const left = r.left - svgRect.left;
+        const top = r.top - svgRect.top;
+        const width = r.width;
+        const height = r.height;
+
+        return {
+          left,
+          top,
+          width,
+          height,
+          right: left + width,
+          bottom: top + height,
+          cx: left + width/2,
+          cy: top + height/2
+        };
+      }
+
+      function anchorPoint(rect, side){
+        switch(side){
+          case "left": return { x: rect.left, y: rect.cy };
+          case "right": return { x: rect.right, y: rect.cy };
+          case "top": return { x: rect.cx, y: rect.top };
+          case "bottom": return { x: rect.cx, y: rect.bottom };
+          default: return { x: rect.cx, y: rect.cy };
+        }
+      }
+
+      function edgePath(fromRect, toRect){
+        const dx = toRect.cx - fromRect.cx;
+        const dy = toRect.cy - fromRect.cy;
+
+        const horizontal = Math.abs(dx) >= Math.abs(dy);
+
+        let fromSide, toSide;
+        if(horizontal){
+          fromSide = dx >= 0 ? "right" : "left";
+          toSide = dx >= 0 ? "left" : "right";
+        }else{
+          fromSide = dy >= 0 ? "bottom" : "top";
+          toSide = dy >= 0 ? "top" : "bottom";
+        }
+
+        const p1 = anchorPoint(fromRect, fromSide);
+        const p2 = anchorPoint(toRect, toSide);
+
+        // Bezier control points
+        const curvature = 0.55;
+        let c1, c2;
+
+        if(horizontal){
+          const d = Math.max(60, Math.abs(p2.x - p1.x) * curvature);
+          c1 = { x: p1.x + (fromSide === "right" ? d : -d), y: p1.y };
+          c2 = { x: p2.x + (toSide === "left" ? -d : d), y: p2.y };
+        }else{
+          const d = Math.max(60, Math.abs(p2.y - p1.y) * curvature);
+          c1 = { x: p1.x, y: p1.y + (fromSide === "bottom" ? d : -d) };
+          c2 = { x: p2.x, y: p2.y + (toSide === "top" ? -d : d) };
+        }
+
+        return `M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} C ${c1.x.toFixed(1)} ${c1.y.toFixed(1)}, ${c2.x.toFixed(1)} ${c2.y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+      }
+
+      function updateEdge(edge){
+        const fromEl = state.nodeEls.get(edge.from);
+        const toEl = state.nodeEls.get(edge.to);
+        if(!fromEl || !toEl) return;
+
+        const fromRect = rectInCanvas(fromEl);
+        const toRect = rectInCanvas(toEl);
+
+        edge.el.setAttribute("d", edgePath(fromRect, toRect));
+      }
+
+      function updateAllEdges(){
+        // Keep SVG user units == CSS pixels (no implicit scaling).
+        const w = Math.max(1, edgesSvg.clientWidth);
+        const h = Math.max(1, edgesSvg.clientHeight);
+        edgesSvg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+        for(const e of state.edges) updateEdge(e);
+      }
+
+      function updateEdgesForNode(nodeId){
+        for(const e of state.edges){
+          if(e.from === nodeId || e.to === nodeId){
+            updateEdge(e);
+          }
+        }
+      }
+
+      function highlightConnections(nodeId, on){
+        for(const e of state.edges){
+          const connected = (e.from === nodeId || e.to === nodeId);
+          e.el.classList.toggle("dim", on && !connected);
+          e.el.classList.toggle("highlight", on && connected);
+        }
+      }
+
+      function collapseAll(){
+        for(const [id, el] of state.nodeEls){
+          setCollapsed(el, true);
+        }
+        updateAllEdges();
+        saveLayoutDebounced();
+      }
+
+      function expandAll(){
+        for(const [id, el] of state.nodeEls){
+          setCollapsed(el, false);
+        }
+        updateAllEdges();
+        saveLayoutDebounced();
+      }
+
+      btnCollapse.addEventListener("click", collapseAll);
+      btnExpand.addEventListener("click", expandAll);
+      btnReset.addEventListener("click", resetLayout);
+
+      async function main(){
+        setOverlay("Loading…", `fetch("${DATA_URL}")`, false);
+
+        let data;
+        try{
+          const resp = await fetch(DATA_URL, { cache: "no-store" });
+          if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          data = await resp.json();
+        }catch(err){
+          setOverlay("Load failed", [
+            "Unable to load the JSON file.",
+            "If you opened index.html directly (file://), your browser may block fetch().",
+            "",
+            "Tip: run a local static server in this folder, for example:",
+            "  python -m http.server 8000",
+            "Then open:",
+            "  http://localhost:8000/index.html",
+            "",
+            "Error:",
+            String(err)
+          ].join("\n"), false);
+          return;
+        }
+
+        state.data = data;
+        state.layoutKey = "node_layout_" + (data.workflow_meta?.id || "workflow");
+        state.nodesById = new Map((data.nodes || []).map(n => [n.id, n]));
+
+        wfNameEl.textContent = data.workflow_meta?.name || "Workflow Node Map";
+        wfDescEl.textContent = data.workflow_meta?.description || `data: ${DATA_URL}`;
+        document.title = wfNameEl.textContent;
+
+        // Build nodes
+        const saved = loadLayout();
+        const positions = saved?.positions || autoLayout(data.nodes || []);
+        const collapsed = saved?.collapsed || null;
+
+        // Clear existing nodes but keep svg
+        Array.from(canvas.querySelectorAll(".node")).forEach(n => n.remove());
+
+        for(const node of (data.nodes || [])){
+          const el = createNodeEl(node);
+          const p = positions[node.id] || {x:40, y:40};
+          el.style.left = p.x + "px";
+          el.style.top = p.y + "px";
+          const isCollapsed = collapsed ? !!collapsed[node.id] : true;
+          setCollapsed(el, isCollapsed);
+
+          canvas.appendChild(el);
+          state.nodeEls.set(node.id, el);
+        }
+
+        // Make sure the canvas is large enough to contain all nodes before drawing edges.
+        ensureCanvasSize();
+
+        // Build edges
+        buildEdges();
+        // Initial edge layout
+        requestAnimationFrame(() => {
+          updateAllEdges();
+          setOverlay("", "", true);
+        });
+
+        // Keep edges updated on window resize
+        window.addEventListener("resize", () => updateAllEdges());
+
+        // Optional: keep edges updated while scrolling (helps with some browsers/subpixel issues)
+        viewport.addEventListener("scroll", () => {
+          // Edges are in canvas, so they scroll together, but updating can avoid minor jitter.
+          updateAllEdges();
+        }, { passive: true });
+      }
+
+      main();
+    })();
+  </script>
+</body>
+</html>
