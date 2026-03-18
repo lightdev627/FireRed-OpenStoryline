@@ -163,7 +163,7 @@ Note: Before starting, you need to configure the API-Key in config.toml first. F
 #### MacOS or Linux
 
 ```bash
-PYTHONPATH=src python3 -m open_storyline.mcp.server
+PYTHONPATH=src python -m open_storyline.mcp.server
 ```
 
 #### Windows
@@ -188,8 +188,14 @@ $env:PYTHONPATH="src"; python -m open_storyline.mcp.server
 ## 🐳 Docker
 
 ### Pull the Image
-```
+```bash
+# Pull image from Docker Hub official repository
+# Recommended for users outside China
 docker pull openstoryline/openstoryline:v1.0.0
+
+# Pull image from Alibaba Cloud Container Registry
+# Recommended for users in China (faster and more stable)
+docker pull crpi-6knxem4w8ggpdnsn.cn-shanghai.personal.cr.aliyuncs.com/openstoryline/openstoryline:v1.0.0
 ```
 
 ### Start the Container
@@ -197,10 +203,11 @@ docker pull openstoryline/openstoryline:v1.0.0
 docker run \
   -v $(pwd)/config.toml:/app/config.toml \
   -v $(pwd)/outputs:/app/outputs \
+  -v $(pwd)/run.sh:/app/run.sh \
   -p 7860:7860 \
   openstoryline/openstoryline:v1.0.0
 ```
-After starting, access the Web interface at http://127.0.0.1:7860
+After starting, access the Web interface at http://0.0.0.0:7860
 
 ## 📁 Project Structure
 ```

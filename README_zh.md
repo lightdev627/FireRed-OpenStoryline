@@ -198,7 +198,13 @@ sh build_env.sh
 
 ### 拉取镜像
 ```
+# 从 Docker Hub 官方仓库拉取镜像
+# 推荐海外用户使用
 docker pull openstoryline/openstoryline:v1.0.0
+
+# 从阿里云容器镜像服务拉取镜像
+# 推荐国内用户使用（速度更快，更稳定）
+docker pull crpi-6knxem4w8ggpdnsn.cn-shanghai.personal.cr.aliyuncs.com/openstoryline/openstoryline:v1.0.0
 ```
 
 ### 启动镜像
@@ -206,10 +212,11 @@ docker pull openstoryline/openstoryline:v1.0.0
 docker run \
   -v $(pwd)/config.toml:/app/config.toml \
   -v $(pwd)/outputs:/app/outputs \
+  -v $(pwd)/run.sh:/app/run.sh \
   -p 7860:7860 \
   openstoryline/openstoryline:v1.0.0
 ```
-启动后访问Web界面 http://127.0.0.1:7860
+启动后访问Web界面 http://0.0.0.0:7860
 
 ## 📁 项目结构
 ```
