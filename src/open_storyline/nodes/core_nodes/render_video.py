@@ -52,7 +52,7 @@ from open_storyline.utils.util import get_video_rotation
 
 MILLISECONDS_PER_SECOND: float = 1000.0
 
-MAX_MEDIA_DIMENSION_PX: int = 1080  # requirement: any media <=1080
+MAX_MEDIA_DIMENSION_PX: int = 4096  # requirement: any media <=4096
 DEFAULT_OUTPUT_MAX_DIMENSION_PX: int = 1080
 
 DEFAULT_OUTPUT_ASPECT_RATIO: float = 16.0 / 9.0
