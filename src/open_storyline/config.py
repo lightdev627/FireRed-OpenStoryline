@@ -1,4 +1,4 @@
-# open_storyline/configuration_utils.py
+# /src/open_storyline/config.py
 from __future__ import annotations
 import os
 from pathlib import Path
@@ -76,9 +76,6 @@ class ConfigBaseModel(BaseModel):
 
 class DeveloperConfig(ConfigBaseModel):
     developer_mode: bool = False
-    default_llm: str = "deepseek-chat"
-    default_vlm: str = "qwen3-vl-8b-instruct"
-    chat_models_config: dict[str, dict[str, Any]] = Field(default_factory=dict)
     print_context: bool = False
 
 class ProjectConfig(ConfigBaseModel):

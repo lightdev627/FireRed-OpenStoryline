@@ -57,6 +57,7 @@ async def validate_api_key(base_url: str, api_key: str, model: str, provider: st
                     raise ValueError(f"{provider} returned non-JSON response. Check base_url/gateway.")
                 choices = data.get("choices")
                 if isinstance(choices, list) and len(choices) > 0:
+                    print(f"{model} validation successful")
                     return True
                 raise ValueError(
                     f"{provider} returned a non-OpenAI-compatible response for chat.completions. "
