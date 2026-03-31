@@ -80,7 +80,7 @@ class RecommendTextNode(BaseNode):
     ) -> Any:
         self.text_filter.filter()
         node_state.node_summary.info_for_user(f"[{self.meta.node_id}] Using default font")
-        return [{"font_name": "Noto Sans SC", "font_color": inputs.get("font_color", (255,255,255,255))}]
+        return [{"font_name": "SiYuanHeiTi", "font_color": inputs.get("font_color", (255,255,255,255))}]
 
     async def process(
         self,
