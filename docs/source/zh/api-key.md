@@ -21,8 +21,11 @@
    - **API Key**：填写上一步获取的 Key
 
 3. **API填写**
-   - **Web使用**: 在LLM模型表单中选择使用自定义模型，模型按照配置参数进行填写
-   - **本地部署**: 在config.toml中 找到`[developer.chat_models_config."deepseek-chat"]` 将配置参数填写上去，使得Web页面可以访问到该默认配置。 找到`[llm]`并配置model、base_url、api_key
+   - **Web使用**: 
+      - 在LLM模型下拉框中选择使用自定义模型，模型按照配置参数进行填写
+      - 或是在`config.toml`中 找到`[llm]`并配置model、base_url、api_key。Web页面下拉框会出现你填写的模型。
+   - **CLI**：
+      - 如果你偏好 CLI 入口，需要在`config.toml`中找到`[llm]`并配置model、base_url、api_key。
 
 ## 二、多模态大模型 (VLM)
 
@@ -42,15 +45,12 @@
  - **模型名称**：`qwen3-vl-8b-instruct`
  - **Base URL**：`https://dashscope.aliyuncs.com/compatible-mode/v1`
 
- - **参数填写**：在VLM Model表单中选择"使用自定义模型"进行参数填写。本地部署时，找到`[vlm]`并配置model、base_url、api_key，在config.toml中新增以下字段作为Web的API默认配置：
-    ```
-   [developer.chat_models_config."qwen3-vl-8b-instruct"]
-   base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-   api_key = "YOUR_API_KEY" 
-   timeout = 20.0
-   temperature = 0.1
-   max_retries = 2
-   ```
+ - **参数填写**：
+    - **Web使用**: 
+      - 在VLM模型下拉框中选择使用自定义模型，模型按照配置参数进行填写。
+      - 或是在`config.toml`中 找到`[vlm]`并配置model、base_url、api_key。Web页面下拉框会出现你填写的模型。
+   - **CLI**：
+      - 如果你偏好 CLI 入口，需要在`config.toml`中找到`[vlm]`并配置model、base_url、api_key。
 
 
 ### 2.3 使用Qwen3-Omni

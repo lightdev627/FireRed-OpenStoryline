@@ -21,8 +21,12 @@ Note: For users outside China, we recommend using large language models such as 
    - **API Key**: Fill in the Key obtained in the previous step
 
 3. **API Configuration**
-   - **Web Usage**: Select "Use Custom Model" in the LLM model form, and fill in the model according to the configuration parameters
-   - **Local Deployment**: In config.toml, locate `[developer.chat_models_config."deepseek-chat"]` and fill in the configuration parameters to make the default configuration accessible from the Web page. Locate `[llm]` and configure model, base_url, and api_key
+   - **Web Usage**:
+      - In the LLM model dropdown, select **Custom Model**, then fill in the model settings according to your configuration parameters.
+      - Or, open `config.toml`, locate `[llm]`, and configure `model`, `base_url`, and `api_key`. The model you entered will then appear in the dropdown on the Web page.
+   - **CLI**:
+      - If you prefer the CLI entry point, you need to open `config.toml`, locate `[llm]`, and configure `model`, `base_url`, and `api_key`.
+
 
 ## 2. Multimodal Large Language Model (VLM)
 
@@ -42,15 +46,12 @@ Note: For users outside China, we recommend using large language models such as 
   - **Model Name**: `qwen3-vl-8b-instruct`
   - **Base URL**: `https://dashscope.aliyuncs.com/compatible-mode/v1`
 
-  - Parameter Configuration: Select "Use Custom Model" in the VLM Model form and fill in the parameters. For local deployment, locate `[vlm]` and configure model, base_url, and api_key. Add the following fields in config.toml as the default Web API configuration:
-   ```
-   [developer.chat_models_config."qwen3-vl-8b-instruct"]
-   base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-   api_key = "YOUR_API_KEY" 
-   timeout = 20.0
-   temperature = 0.1
-   max_retries = 2
-   ```
+  - Parameter Configuration: 
+    - **Web Usage**:
+      - In the VLM model dropdown, select **Custom Model**, then fill in the model settings according to your configuration parameters.
+      - Or, open `config.toml`, locate `[vlm]`, and configure `model`, `base_url`, and `api_key`. The model you entered will then appear in the dropdown on the Web page.
+    - **CLI**: 
+      - If you prefer the CLI entry point, you need to open `config.toml`, locate `[vlm]`, and configure `model`, `base_url`, and `api_key`.
 
 ### 2.3 Using Qwen3-Omni
 

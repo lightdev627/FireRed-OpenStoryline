@@ -68,18 +68,6 @@ USE_SESSION_SUBDIR = True
 
 CUSTOM_MODEL_KEY = "__custom__"
 
-# Load keys
-DEFAULT_LLM_API_KEY = os.getenv("DEEPSEEK_API_KEY")
-DEFAULT_LLM_API_URL = os.getenv("DEEPSEEK_API_URL")
-DEFAULT_LLM_API_NAME = os.getenv("DEEPSEEK_API_NAME", "deepseek-chat")
-DEFAULT_VLM_API_KEY = os.getenv("GLM_V4_6_API_KEY")
-DEFAULT_VLM_API_URL = os.getenv("GLM_V4_6_API_URL")
-DEFAULT_VLM_API_NAME = os.getenv("GLM_V4_6_API_NAME", "qwen3-vl-8b-instruct")
-print("DEEPSEEK_API_KEY exists:", bool(os.getenv("DEEPSEEK_API_KEY")))
-print("QWEN3_VL_8B_API_KEY exists:", bool(os.getenv("QWEN3_VL_8B_API_KEY")))
-print("DEEPSEEK_API_URL:", repr(os.getenv("DEEPSEEK_API_URL")))
-print("QWEN3_VL_8B_API_URL:", repr(os.getenv("QWEN3_VL_8B_API_URL")))
-
 def debug_traceback_print(cfg: Settings):
     if cfg.developer.developer_mode:
         traceback.print_exc()
@@ -91,64 +79,81 @@ def _norm_url(u: Any) -> str:
     u = _s(u)
     return u.rstrip("/") if u else ""
 
-def _env_fallback_for_model(model_name: str) -> Tuple[str, str]:
+MODEL_ENV_KEYS = {
+    "llm": {
+        "model": "OPENSTORYLINE_LLM_MODEL",
+        "base_url": "OPENSTORYLINE_LLM_BASE_URL",
+        "api_key": "OPENSTORYLINE_LLM_API_KEY",
+    },
+    "vlm": {
+        "model": "OPENSTORYLINE_VLM_MODEL",
+        "base_url": "OPENSTORYLINE_VLM_BASE_URL",
+        "api_key": "OPENSTORYLINE_VLM_API_KEY",
+    },
+}
+
+def _read_model_env(kind: str) -> Dict[str, str]:
+    keys = MODEL_ENV_KEYS[kind]
+    return {
+        "model": os.getenv(keys.get("model", "")) or "",
+        "base_url": _norm_url(os.getenv(keys.get("base_url", ""))),
+        "api_key": os.getenv(keys.get("api_key", "")) or "",
+    }
+
+def _resolve_builtin_model_override(kind: str, cfg_block: Any) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
     """
-    - deepseek* -> DEEPSEEK_API_URL / DEEPSEEK_API_KEY
-    - qwen3*  -> QWEN3_VL_8B_API_URL / QWEN3_VL_8B_API_KEY
+    Default model parsing rules:
+    1. Prioritize using `[llm]/[vlm]` from `config.toml`
+    2. If any of `model`, `base_url`, or `api_key` is missing, the entire set will fall back to environment variables.
+    3. Runtime parameters such as `timeout`, `temperature`, and `max_retries` are still read from the config block.
     """
-    m = _s(model_name).lower()
-    if "deepseek" in m:
-        return (_s(os.getenv("DEEPSEEK_API_URL")), _s(os.getenv("DEEPSEEK_API_KEY")))
-    if m.startswith("qwen3-vl-8b-instruct") or "qwen3-vl-8b-instruct" in m:
-        return (_s(os.getenv("QWEN3_VL_8B_API_URL")), _s(os.getenv("QWEN3_VL_8B_API_KEY")))
-    return ("", "")
+    kind = kind.strip().lower()
+    if kind not in ("llm", "vlm"):
+        return None, f"unknown model kind: {kind}"
 
-def _resolve_default_model_override(cfg: Settings, model_name: str) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
-    """
-    1. get config from [developer.chat_models_config."<model_name>"]
-    2. rollback to env
-    """
-    model_name = _s(model_name)
-    if not model_name:
-        return None, "default model name is empty"
+    model = _s(getattr(cfg_block, "model", None))
+    base_url = _norm_url(getattr(cfg_block, "base_url", None))
+    api_key = _s(getattr(cfg_block, "api_key", None))
 
-    model_cfg: Dict[str, Any] = {}
-    try:
-        model_cfg = (cfg.developer.chat_models_config.get(model_name) or {}) if getattr(cfg, "developer", None) else {}
-    except Exception:
-        model_cfg = {}
+    config_complete = bool(model and base_url and api_key)
 
-    if not isinstance(model_cfg, dict):
-        model_cfg = {}
+    if not config_complete:
+        env_cfg = _read_model_env(kind)
+        model = env_cfg["model"]
+        base_url = env_cfg["base_url"]
+        api_key = env_cfg["api_key"]
 
-    base_url = _norm_url(model_cfg.get("base_url"))
-    api_key = _s(model_cfg.get("api_key"))
-
-    if not base_url or not api_key:
-        env_url, env_key = _env_fallback_for_model(model_name)
-        if not base_url:
-            base_url = _norm_url(env_url)
-        if not api_key:
-            api_key = _s(env_key)
-
-    override: Dict[str, Any] = {"model": model_name}
-    if base_url:
-        override["base_url"] = base_url
-    if api_key:
-        override["api_key"] = api_key
-
-    for k in ("timeout", "temperature", "max_retries", "top_p", "max_tokens"):
-        if k in model_cfg and model_cfg.get(k) not in (None, ""):
-            override[k] = model_cfg.get(k)
-
-    if not override.get("base_url") or not override.get("api_key"):
+    if not (model and base_url and api_key):
+        keys = MODEL_ENV_KEYS[kind]
         return None, (
-            f"cannot find base_url/api_key of default model: {model_name}. "
-            f"please fill in base_url/api_key of [developer.chat_models_config.\"{model_name}\" in config.toml]"
-            f"or set environment variables（DEEPSEEK_API_URL/DEEPSEEK_API_KEY / QWEN3_VL_8B_API_URL/QWEN3_VL_8B_API_KEY）。"
+            f"{kind} config incomplete. "
+            f"Please either fill [{kind}].model/base_url/api_key in config.toml, "
+            f"or set env vars: "
+            f"{keys['model']}, {keys['base_url']}, {keys['api_key']}"
+            f"\nand then rerun."
         )
 
+    override: Dict[str, Any] = {
+        "model": model,
+        "base_url": base_url,
+        "api_key": api_key,
+    }
+
+    for k in ("timeout", "temperature", "max_retries", "top_p", "max_tokens"):
+        v = getattr(cfg_block, k, None)
+        if v not in (None, ""):
+            override[k] = v
+
     return override, None
+
+def _peek_builtin_model_name(kind: str, cfg: Settings) -> str:
+    # Get the model name displayed on the front end
+    cfg_block = cfg.llm if kind == "llm" else cfg.vlm
+    resolved, _ = _resolve_builtin_model_override(kind, cfg_block)
+    if resolved and resolved.get("model"):
+        return _s(resolved["model"])
+
+    return "unknown model"
 
 def _stable_dict_key(d: Optional[Dict[str, Any]]) -> str:
     try:
@@ -1024,8 +1029,8 @@ class ChatSession:
         self.cfg = cfg
         self.lang = "zh"
 
-        default_llm = _s(getattr(getattr(cfg, "developer", None), "default_llm", "")) or "deepseek-chat"
-        default_vlm = _s(getattr(getattr(cfg, "developer", None), "default_vlm", "")) or "qwen3-vl-8b-instruct"
+        default_llm = _peek_builtin_model_name("llm", self.cfg)
+        default_vlm = _peek_builtin_model_name("vlm", self.cfg)
 
         self.chat_models = [default_llm, CUSTOM_MODEL_KEY]
         self.chat_model_key = default_llm
@@ -1187,7 +1192,7 @@ class ChatSession:
                 raise RuntimeError("please fill in model/base_url/api_key of custom LLM")
             llm_override = self.custom_llm_config
         else:
-            llm_override, err = _resolve_default_model_override(self.cfg, self.chat_model_key)
+            llm_override, err = _resolve_builtin_model_override("llm", self.cfg.llm)
             if err:
                 raise RuntimeError(err)
 
@@ -1197,7 +1202,7 @@ class ChatSession:
                 raise RuntimeError("please fill in model/base_url/api_key of custom VLM")
             vlm_override = self.custom_vlm_config
         else:
-            vlm_override, err = _resolve_default_model_override(self.cfg, self.vlm_model_key)
+            vlm_override, err = _resolve_builtin_model_override("vlm", self.cfg.vlm)
             if err:
                 raise RuntimeError(err)
 

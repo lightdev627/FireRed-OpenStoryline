@@ -1,22 +1,7 @@
 # ============= 开发者选项 / Developer Options ===============
 [developer]
-developer_mode = false
-default_llm = "deepseek-chat"
-default_vlm = "qwen3-vl-8b-instruct"
+developer_mode = true
 print_context = false # 在拦截器打印模型拿到的全部上下文，会很长 / Print full context in interceptor (output will be very long)
-
-# ============= 模型配置 for 体验网页 ===============
-[developer.chat_models_config."deepseek-chat"]
-base_url = ""
-api_key = ""
-temperature = 0.1
-
-[developer.chat_models_config."qwen3-vl-8b-instruct"]
-base_url = ""
-api_key = "" 
-timeout = 20.0
-temperature = 0.1
-max_retries = 2
 
 # ============= 项目路径 / Project Paths ======================
 [project]
@@ -26,7 +11,7 @@ outputs_dir = "./outputs"
 
 # ============= 模型配置 for user / Model Config for User =============
 [llm]
-model = "deepseek-chat"
+model = ""
 base_url = ""
 api_key = "" 
 timeout = 30.0 # 单位：秒
@@ -34,13 +19,12 @@ temperature = 0.1
 max_retries = 2
 
 [vlm]
-model = "qwen3-vl-8b-instruct"
+model = ""
 base_url = ""
 api_key = "" 
 timeout = 20.0 # 单位：秒
 temperature = 0.1
 max_retries = 2
-
 
 # ============= MCP Server 相关 / MCP Server Related =============
 [local_mcp_server]
