@@ -45,11 +45,16 @@
 > FireRed，字面意思红色的火苗，取自“星星之火，可以燎原”。我们将这团火苗取名为 FireRed，就是希望将我们在真实场景中打磨出的 SOTA 能力，像火种一样撒向旷野，点燃全球开发者的想象力，共同改变这个 AI 的世界。
 
 ## ✨ 核心特性
-- 🌐 **智能素材搜索与整理**： 自动在线搜索并下载符合你需求的图片和视频片段。基于用户主题素材进行片段拆分与内容理解
+- 🌐 **智能素材搜索与整理**： 自动在线搜索并下载符合你需求的图片和视频片段。基于用户主题素材进行片段拆分与内容理解。
 - ✍️ **智能文案生成**： 结合用户主题、画面理解与情绪识别，自动构建故事线及契合的旁白。内置少样本（Few-shot）仿写能力，支持通过输入参考文本（如种草测评、日常碎碎念等）定义文案风格，实现语感、节奏与句式的精准复刻。
 - 🎵 **智能推荐音乐、配音与字体**：支持导入私有歌单，根据视频内容和情绪自动推荐背景音乐并智能卡点。只需描述"克制一点","偏情绪化","像纪录片旁白"等风格，系统即可匹配合适的配音与字体，保证整体风格协调统一。
 - 💬 **对话式精修**：支持快速删减、替换或重组片段；修改任意字幕文案；调整文字颜色、字体、描边、位置等视觉元素——所有操作均通过自然语言完成，即改即得。
 - ⚡ **剪辑技能沉淀**： 可一键保存为专属剪辑Skill，记录完整的剪辑逻辑。下次只需更换素材并选择对应Skill，即可快速复刻同款风格，实现高效批量生产。
+
+## NEWS
+
+- 🔥 **2026-03-12**：接入**OpenClaw**，新增 `openstoryline-install` 与 `openstoryline-use` 两个 OpenClaw Skills，分别覆盖安装首跑与实际使用流程；添加面向 **Claude Code** 的 Skill 使用说明，方便 **Claude Code** 依据仓库规范完成安装与调用。
+- **2026-2-10**：FireRed-OpenStoryline 正式开源。
 
 ## 🏗️ 架构
 
@@ -96,7 +101,39 @@
 > ⚖️ <b>免责声明：</b>演示中包含的用户自摄素材及品牌标识仅作技术能力展示，版权归原作者所有。如有侵权请联系删除。
 > </sub>
 
+## 🤖 通过 OpenClaw / Claude Code 使用
 
+FireRed-OpenStoryline 支持通过 Agent Skills 使用。
+
+### OpenClaw
+我们提供了两个 OpenClaw Skills：
+
+- `openstoryline-install`：用于安装、配置与首跑验证。
+- `openstoryline-use`：用于启动服务并执行实际视频剪辑流程。
+
+```bash
+npm i -g clawhub
+clawhub install openstoryline-install
+clawhub install openstoryline-use
+```
+
+安装后，只需要将素材地址发给 OpenClaw，它就可以帮你完成从安装 FireRed-OpenStoryline 到成片的整个过程。
+
+### Claude Code
+
+本仓库内置了 Claude Code Skills。  
+如果你在**仓库根目录**启动 Claude Code，可直接使用仓库中的项目级 Skills，Claude Code 可以帮你完成 FireRed-OpenStoryline 的安装。
+
+```bash
+/openstoryline-install
+```
+
+如果你想把这个 Skill 安装到你自己的 Claude Code 全局配置中，可执行：
+
+```bash
+mkdir -p ~/.claude/skills
+cp -R .claude/skills/openstoryline-install ~/.claude/skills/
+```
 
 ## 📦 安装
 
