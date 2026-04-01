@@ -50,6 +50,11 @@
 - 💬 **Conversational Refinement**: Rapidly cut, swap, or resequence clips. Edit scripts and fine-tune visual details—including color, font, stroke, and position. All edits are performed exclusively via natural language prompts with immediate results.
 - ⚡**Editing Skill Archiving**: Save your complete editing workflow as a custom Skill. Simply swap the media and apply the corresponding Skill to instantly replicate the style, enabling efficient batch creation.
 
+## NEWS
+
+* 🔥 **2026-03-12**: Integrated with **OpenClaw**, adding two OpenClaw Skills — `openstoryline-install` and `openstoryline-use` — covering the initial installation/first-run workflow and the actual usage workflow, respectively. Also added Skill usage instructions for **Claude Code**, making it easier for **Claude Code** to install and invoke the project in accordance with the repository guidelines.
+* **2026-02-10**: FireRed-OpenStoryline was officially open-sourced.
+
 ## 🏗️ Architecture
 
 <p align="center">
@@ -91,6 +96,41 @@
 > In the Demo: The <b>first row</b> shows default open-source assets (Restricted Mode); the <b>second row</b> shows Xiaohongshu App "AI Clip" asset library effects. 👉 <a href="https://image-url-2-feature-1251524319.cos.ap-shanghai.myqcloud.com/openstoryline/docs/media/others/ai_cut_guide.png">Click to view tutorial</a><br>
 > ⚖️ <b>Disclaimer:</b> User footage and brand logos shown in the demos are for technical demonstration purposes only. Ownership belongs to the original creators. Please contact us for copyright concerns.
 > </sub>
+
+## 🤖 Use via OpenClaw / Claude Code
+
+FireRed-OpenStoryline supports usage through Agent Skills.
+
+### OpenClaw
+
+We provide two OpenClaw Skills:
+
+* `openstoryline-install`: for installation, configuration, and first-run verification.
+* `openstoryline-use`: for starting the service and running the actual video editing workflow.
+
+```bash
+npm i -g clawhub
+clawhub install openstoryline-install
+clawhub install openstoryline-use
+```
+
+After installation, you only need to send your media source paths to OpenClaw, and it can help you complete the entire process from installing FireRed-OpenStoryline to generating the final video.
+
+### Claude Code
+
+This repository includes built-in Claude Code Skills.
+If you launch Claude Code from **the repository root**, you can directly use the project-level Skills included in this repo, and Claude Code can help you install FireRed-OpenStoryline.
+
+```bash
+/openstoryline-install
+```
+
+If you want to install the Skill into your own global Claude Code configuration, run:
+
+```bash
+mkdir -p ~/.claude/skills
+cp -R .claude/skills/openstoryline-install ~/.claude/skills/
+```
 
 
 ## 📦 Install
