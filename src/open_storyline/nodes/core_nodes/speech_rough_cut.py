@@ -1,7 +1,5 @@
 from typing import Any, Dict
-import os
-import subprocess
-import tempfile
+from pathlib import Path
 
 from open_storyline.nodes.core_nodes.base_node import BaseNode, NodeMeta
 from open_storyline.nodes.node_state import NodeState
@@ -15,6 +13,9 @@ from open_storyline.utils.ffmpeg_utils import (
     VideoSegment,
 )
 from open_storyline.utils.register import NODE_REGISTRY
+
+CLIP_ID_NUMBER_WIDTH = 4
+MILLISECONDS_PER_SECOND = 1000.0
 
 @NODE_REGISTRY.register()
 class SpeechRoughCutNode(BaseNode):
@@ -45,22 +46,25 @@ class SpeechRoughCutNode(BaseNode):
     async def process(self, node_state: NodeState, inputs: Dict[str, Any]) -> Any:
         
         asr_infos = inputs["asr"].get('asr_infos', [])
-        video_path = inputs["asr"].get('video_path')
         gap_threshold = inputs.get('gap_threshold', 400)
         output_directory = self._prepare_output_directory(node_state, inputs)
         llm = node_state.llm
-        rough_cut_jsons = []
+        rough_cut_jsons, clips, clip_index = [], [], 0
 
         system_prompt = get_prompt("speech_rough_cut.system", lang=node_state.lang)
 
         for asr_info in asr_infos:
-
+            
+            video_path = asr_info.get('path')
+            source_ref = asr_info.get('source_ref', {})
+            fps = asr_info.get('fps', 30)
             user_prompt = get_prompt(
                 "speech_rough_cut.user",
                 lang=node_state.lang,
                 asr_sentence_info=asr_info.get("asr_sentence_info", {})
             )
 
+            # If there is no audio, or ASR failed, skip rough cut and keep the original clip
             try:
                 raw = await llm.complete(
                     system_prompt=system_prompt,
@@ -74,26 +78,60 @@ class SpeechRoughCutNode(BaseNode):
             except Exception as e:
                 last_error = e
 
+            # If LLM fails to generate rough cut JSON, skip rough cut and keep the original clip
             try:
                 rough_cut_json = parse_json_list(raw)
                 segments = self.group_sentences(rough_cut_json, gap_threshold=gap_threshold)
                 ranges = self.segments_to_ranges(segments)
                 cuts = self.ranges_to_cut_points(ranges)
+                split_points_seconds = [t/1000 for t in cuts]
                 segments = segment_video_stream_copy_with_ffmpeg(
                     input_video=video_path,
                     ffmpeg_executable=self.ffmpeg_executable,
-                    split_points_seconds=cuts,
+                    split_points_seconds=split_points_seconds,
                     output_directory=output_directory,
-                    filename_prefix=f"clip_{asr_info['clip_id']}",
+                    filename_prefix=f"speech_rough_cut_{clip_index:0{CLIP_ID_NUMBER_WIDTH}d}",
                     start_index=len(rough_cut_jsons),
                 )
                 rough_cut_jsons.append(rough_cut_json)
             except Exception as e:
                 last_error = e
         
-        breakpoint()
+            # Filter segments to keep only the first segment of each pair (i.e., segments[0], segments[2], etc.)
+            filtered_segments = [seg for i, seg in enumerate(segments) if i % 2 == 0]
+
+            for segment in filtered_segments:
+                clip_id = self._format_clip_id(clip_index)
+
+                start_milliseconds = max(0, int(round(segment.start_seconds * MILLISECONDS_PER_SECOND)))
+                end_milliseconds = max(start_milliseconds, int(round(segment.end_seconds * MILLISECONDS_PER_SECOND)))
+
+                segment_duration_milliseconds = max(0, end_milliseconds - start_milliseconds)
+                if segment_duration_milliseconds <= 0:
+                    continue
+
+                output_path_string = str(segment.path)
+                node_state.node_summary.info_for_user(f"{clip_id} split successfully", preview_urls=[output_path_string])
+
+                clips.append(
+                    {
+                        "clip_id": clip_id,
+                        "kind": "video",
+                        "path": output_path_string,
+                        "fps": fps,
+                        "source_ref": {
+                            "media_id": source_ref.get("media_id"),
+                            "start": start_milliseconds,
+                            "end": end_milliseconds,
+                            "duration": segment_duration_milliseconds,
+                            "height": source_ref.get("height"),
+                            "width": source_ref.get("width"),
+                        },
+                    }
+                )
+                clip_index += 1
         
-        return {"rough_cut": rough_cut_jsons}
+        return {"clips": clips, "rough_cut_jsons": rough_cut_jsons}
     
 
     def group_sentences(self, items, gap_threshold: int=400):
@@ -143,3 +181,6 @@ class SpeechRoughCutNode(BaseNode):
         output_directory = self.server_cache_dir / session_id / artifact_id
         output_directory.mkdir(parents=True, exist_ok=True)
         return output_directory
+    
+    def _format_clip_id(self, clip_index: int) -> str:
+        return f"clip_{clip_index:0{CLIP_ID_NUMBER_WIDTH}d}"

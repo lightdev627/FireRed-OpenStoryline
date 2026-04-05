@@ -88,6 +88,8 @@ class LocalASRNode(BaseNode):
         for clip in clips:
             video_path = clip["path"]
             kind = clip["kind"]
+            source_ref = clip.get("source_ref", {})
+            fps = clip.get("fps", 30)
 
             # only process video clips, for other kinds of clips, directly return empty asr text
             if kind != "video":
@@ -95,6 +97,8 @@ class LocalASRNode(BaseNode):
                     "clip_id": clip["clip_id"],
                     "path": video_path,
                     "kind": kind,
+                    "source_ref": source_ref,
+                    "fps": fps,
                     "asr_res": {},
                 })
                 continue
@@ -108,6 +112,8 @@ class LocalASRNode(BaseNode):
                         "clip_id": clip["clip_id"],
                         "path": video_path,
                         "kind": kind,
+                        "source_ref": source_ref,
+                        "fps": fps,
                         "asr_res": {},
                     })
                     node_state.node_summary.info_for_llm(f"Clip {clip['clip_id']} has no audio track, skipped for asr.")
@@ -124,6 +130,8 @@ class LocalASRNode(BaseNode):
                     "clip_id": clip["clip_id"],
                     "path": video_path,
                     "kind": kind,
+                    "source_ref": source_ref,
+                    "fps": fps,
                     "asr_res": res[0] if res else {},
                 })
 
@@ -144,9 +152,12 @@ class LocalASRNode(BaseNode):
             regularized_asr_infos.append({
                 "clip_id": clip_id,
                 "kind": kind,
+                "path": asr_info["path"],
                 "asr_text": asr_res.get("text", "") if asr_res else "",
                 "asr_timestamps": asr_res.get("timestamp", []) if asr_res else [],
                 "asr_sentence_info": asr_res.get("sentence_info", []) if asr_res else [],
+                "source_ref": asr_info.get("source_ref", {}),
+                "fps": asr_info.get("fps", 30),
             })
         return {
             "asr_infos": regularized_asr_infos,
