@@ -235,11 +235,11 @@ $env:PYTHONPATH="src"; python -m open_storyline.mcp.server
 ```bash
 # Pull image from Docker Hub official repository
 # Recommended for users outside China
-docker pull openstoryline/openstoryline:v1.0.0
+docker pull openstoryline/openstoryline:v1.0.1
 
 # Pull image from Alibaba Cloud Container Registry
 # Recommended for users in China (faster and more stable)
-docker pull crpi-6knxem4w8ggpdnsn.cn-shanghai.personal.cr.aliyuncs.com/openstoryline/openstoryline:v1.0.0
+docker pull crpi-6knxem4w8ggpdnsn.cn-shanghai.personal.cr.aliyuncs.com/openstoryline/openstoryline:v1.0.1
 ```
 
 ### Start the Container
@@ -249,7 +249,7 @@ docker run \
   -v $(pwd)/outputs:/app/outputs \
   -v $(pwd)/run.sh:/app/run.sh \
   -p 7860:7860 \
-  openstoryline/openstoryline:v1.0.0
+  openstoryline/openstoryline:v1.0.1
 ```
 After starting, access the Web interface at http://0.0.0.0:7860
 
