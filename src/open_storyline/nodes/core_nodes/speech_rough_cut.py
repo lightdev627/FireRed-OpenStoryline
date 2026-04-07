@@ -1,21 +1,21 @@
 from typing import Any, Dict
 from pathlib import Path
-
+import json
 from open_storyline.nodes.core_nodes.base_node import BaseNode, NodeMeta
 from open_storyline.nodes.node_state import NodeState
 from open_storyline.nodes.node_schema import SpeechRoughCutInput
 from open_storyline.utils.prompts import get_prompt
-from open_storyline.utils.parse_json import parse_json_list
+from open_storyline.utils.parse_json import parse_json_dict
 from open_storyline.utils.ffmpeg_utils import (
     resolve_ffmpeg_executable,
-    segment_video_stream_copy_with_ffmpeg,
+    cut_video_segment_with_ffmpeg,
     VideoSegment,
 )
 from open_storyline.utils.register import NODE_REGISTRY
 
 CLIP_ID_NUMBER_WIDTH = 4
 MILLISECONDS_PER_SECOND = 1000.0
-DEFAULT_BUFFER_MS = 100  # buffer in milliseconds for safe cut
+DEFAULT_BUFFER_MS = 0  # buffer in milliseconds for safe cut
 
 @NODE_REGISTRY.register()
 class SpeechRoughCutNode(BaseNode):
@@ -53,7 +53,7 @@ class SpeechRoughCutNode(BaseNode):
         gap_threshold = inputs.get('gap_threshold', 400)
         output_directory = self._prepare_output_directory(node_state, inputs)
         llm = node_state.llm
-        rough_cut_jsons, clips, clip_index = [], [], 0
+        rough_cut_jsons, clips = [], []
 
         # Load system prompt for rough cut
         system_prompt = get_prompt("speech_rough_cut.system", lang=node_state.lang)
@@ -70,7 +70,7 @@ class SpeechRoughCutNode(BaseNode):
                 user_prompt = get_prompt(
                     "speech_rough_cut.user",
                     lang=node_state.lang,
-                    curr_asr_sentence_info=sentence,
+                    curr_asr_sentence_info=json.dumps(sentence),
                     asr_text=asr_info.get("asr_text", ''),
                 )
 
@@ -85,12 +85,12 @@ class SpeechRoughCutNode(BaseNode):
                         max_tokens=8092,
                         model_preferences=None,
                     )
-                    parsed_json = parse_json_list(raw)
+                    parsed_json = parse_json_dict(raw)
                     print(parsed_json)
-                    rough_cut_json += parsed_json
+                    rough_cut_json += parsed_json.get('res', [])
                 except Exception as e:
                     # fallback to original ASR if LLM fails
-                    node_state.node_summary.warn(f"LLM rough cut failed: {e}")
+                    node_state.node_summary.add_warning(f"LLM rough cut failed: {e}, raw response: {raw}")
                 
 
             # Group sentences based on gap threshold
@@ -99,22 +99,17 @@ class SpeechRoughCutNode(BaseNode):
             # Convert grouped sentences into ranges
             ranges = self.segments_to_ranges(segments_groups)
 
-            # Generate cut points with buffer
-            cuts = self.ranges_to_cut_points(ranges, buffer_ms=DEFAULT_BUFFER_MS)
-            split_points_seconds = [t / 1000 for t in cuts]
-
-            # Split video using ffmpeg
-            ff_segments = segment_video_stream_copy_with_ffmpeg(
-                input_video=video_path,
-                ffmpeg_executable=self.ffmpeg_executable,
-                split_points_seconds=split_points_seconds,
-                output_directory=output_directory,
-                filename_prefix=f"speech_rough_cut_{clip_index:0{CLIP_ID_NUMBER_WIDTH}d}",
-                start_index=len(rough_cut_jsons),
-            )
-
-            # Filter segments to keep only the first segment of each pair (i.e., segments[0], segments[2], etc.)
-            filtered_segments = [seg for i, seg in enumerate(ff_segments) if i % 2 == 0]
+            # Group sentences into segments and compute cut points
+            filtered_segments = []
+            for clip_index, item in enumerate(ranges):
+                segment = cut_video_segment_with_ffmpeg(
+                    video_path=video_path,
+                    start=item["start"] / 1000,
+                    end=item["end"] / 1000,
+                    output_path=output_directory / f"speech_rough_cut_{clip_index:0{CLIP_ID_NUMBER_WIDTH}d}.mp4",
+                    ffmpeg_executable=self.ffmpeg_executable
+                )
+                filtered_segments.append(segment)
 
             # Compute deleted ranges and recalibrate ASR timestamps
             deleted_ranges = self.compute_deleted_ranges(filtered_segments)
@@ -123,6 +118,7 @@ class SpeechRoughCutNode(BaseNode):
 
 
             # Generate final clip metadata
+            clip_index = 0
             for segment in filtered_segments:
                 clip_id = self._format_clip_id(clip_index)
                 start_ms = max(0, int(round(segment.start_seconds * MILLISECONDS_PER_SECOND)))
@@ -190,6 +186,7 @@ class SpeechRoughCutNode(BaseNode):
                 start_cut = mid
             cuts.append(end_cut)
             cuts.append(start_cut)
+        cuts = [max(ranges[0]["start"] - buffer_ms, 0)] + cuts + [ranges[-1]["end"] + buffer_ms]
         return cuts
 
     # --------------------- Time Calibration ---------------------

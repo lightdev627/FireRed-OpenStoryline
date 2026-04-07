@@ -25,25 +25,35 @@
 *   **信息量保持**：**不能删除任何有信息量的句子**，只删除无意义、冗余的内容，**谨慎删除！谨慎删除！谨慎删除！**。
 
 # Output Format
-*   仅输出 **JSON Array** `List[dict]`，无Markdown标记，无解释。
-*   格式：`[{"text": "...", "start": int, "end": int}, ...]`
+*   仅输出 **JSON Object**，无Markdown标记，无解释。
+*   格式：`{"reason": "...", "res": [{"text": "...", "start": int, "end": int}, ...]}`
+*   `reason` 字段需优先输出，说明修改逻辑（如：修改时间戳的原因、文本删减的原因、分割的原因）。
 
 # Examples
 
 **Case 1: Delete filler (Head/Tail trim)**
-Input: `{"text": "今天我们啊讲OpenStoryline。", "timestamp": [[940,1080]...[2400,2560]]}` (Assume "今天" starts at 1080 after trim)
-Output: `[{"text": "今天我们讲OpenStoryline。", "start": 1080, "end": 2560}]`
+Input: {"text": "啊今天我们讲OpenStoryline。", "timestamp": [[940,1080](啊), [1080,1200](今天)...[2400,2560](Line)]}
+Output:
+{
+  "reason": "删除了开头的语气词“啊”（timestamp 940-1080），因此Start时间调整为1080。",
+  "res": [{"text": "今天我们讲OpenStoryline。", "start": 1080, "end": 2560}]
+}
 
 **Case 2: Middle delete -> Split**
-Input: `{"text": "我觉得这个东西啊其实很好用", "timestamp": [...[1600,1800](东西), [1800,2000](啊), [2000,2200](其实)...]}`
+Input: {"text": "我觉得这个东西啊其实很好用", "timestamp": [...[1600,1800](东西), [1800,2000](啊), [2000,2200](其实)...]}
 Output:
-```json
-[
-  {"text": "我觉得这个东西", "start": 1000, "end": 1800},
-  {"text": "其实很好用", "start": 2000, "end": 3000}
-]
-```
+{
+  "reason": "删除了中间的语气词“啊”（timestamp 1800-2000），导致句子断开，拆分为两段。",
+  "res": [
+    {"text": "我觉得这个东西", "start": 1000, "end": 1800},
+    {"text": "其实很好用", "start": 2000, "end": 3000}
+  ]
+}
 
 **Case 3: Whole delete**
-Input: `{"text": "嗯，这个就是这样。"}`
-Output: `[]`
+Input: {"text": "嗯，这个就是这样。"}
+Output:
+{
+  "reason": "整句内容均为无意义语气词或废话，故完全删除。",
+  "res": []
+}

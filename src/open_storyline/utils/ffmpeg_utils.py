@@ -6,7 +6,7 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 
@@ -235,3 +235,71 @@ def segment_video_stream_copy_with_ffmpeg(
             )
 
     return segments
+
+def cut_video_segment_with_ffmpeg(
+    video_path: Path,
+    start: float,
+    end: float,
+    output_path: Path,
+    ffmpeg_executable: str = "ffmpeg",
+    video_codec: str = "libx264",
+    audio_codec: str = "aac",
+    extra_args: Optional[List[str]] = None,
+) -> VideoSegment:
+    """
+    Precisely cut a video segment using ffmpeg and return a VideoSegment object.
+    
+    Args:
+        video_path: Path to the input video file.
+        start: Segment start time in seconds.
+        end: Segment end time in seconds.
+        output_path: Path to the output video file.
+        ffmpeg_executable: Path to ffmpeg executable (default "ffmpeg").
+        video_codec: Video codec for output (default "libx264").
+        audio_codec: Audio codec for output (default "aac").
+        extra_args: Optional list of additional ffmpeg arguments.
+        
+    Returns:
+        VideoSegment: Object containing the output path and start/end times.
+        
+    Raises:
+        RuntimeError: If ffmpeg fails to cut the video.
+    """
+    # Ensure output directory exists
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Construct ffmpeg command
+    command = [
+        ffmpeg_executable,
+        "-hide_banner",
+        "-loglevel", "error",    # only show errors
+        "-y",                    # overwrite output if exists
+        "-ss", f"{start:.3f}",   # precise start time
+        "-to", f"{end:.3f}",     # precise end time
+        "-i", str(video_path),
+        "-c:v", video_codec,     # video codec
+        "-c:a", audio_codec,     # audio codec
+        "-movflags", "+faststart",  # optimize for streaming
+    ]
+
+    if extra_args:
+        command.extend(extra_args)
+
+    command.append(str(output_path))
+
+    # Run ffmpeg
+    completed = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    if completed.returncode != 0:
+        raise RuntimeError(
+            f"ffmpeg failed to cut video:\n{video_path}\n"
+            f"start={start}, end={end}\n"
+            f"{completed.stderr.decode('utf-8', errors='replace')}"
+        )
+
+    # Return VideoSegment with exact requested start/end
+    return VideoSegment(
+        path=output_path,
+        start_seconds=start,
+        end_seconds=end
+    )
