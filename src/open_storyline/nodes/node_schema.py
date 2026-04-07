@@ -393,6 +393,7 @@ class RecommendTextOutput(BaseInput):
 
 class PlanTimelineInput(BaseInput):
     use_beats: Annotated[bool, Field(default=True, description="Whether clip transitions should sync with BGM beats")]
+    is_speech_rough_cut: Annotated[bool, Field(default=False, description="Whether the input clips are from speech rough cut, which affects the default timeline strategy selection")] 
 
 class PlanTimelineOutput(BaseModel):
     tracks: List[TimelineTracks] = Field(default_factory=list, description="Timeline track collection")
