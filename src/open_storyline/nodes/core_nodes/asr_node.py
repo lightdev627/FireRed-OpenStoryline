@@ -13,7 +13,7 @@ class LocalASRNode(BaseNode):
 
     meta = NodeMeta(
         name="local_asr",
-        description="Filter clips based on their descriptions according to user requirements. Depends on the results from the understand_clips tool",
+        description="Perform ASR on video clips locally using funasr",
         node_id="local_asr",
         node_kind="asr",
         require_prior_kind=['split_shots'],
