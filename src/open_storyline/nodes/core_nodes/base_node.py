@@ -288,7 +288,14 @@ class BaseNode(ABC):
             except ValidationError as e:
                 logger.error(f"{name} validation failed: {e}")
         return validated_params if update_params else None
-    
+
+    def _prepare_output_directory(self, node_state: NodeState) -> Path:
+        artifact_id = node_state.artifact_id
+        session_id = node_state.session_id
+        output_directory = self.server_cache_dir / session_id / artifact_id
+        output_directory.mkdir(parents=True, exist_ok=True)
+        return output_directory
+
     async def __call__(self, node_state: NodeState, **params) -> Dict[str, Any]:
         try:
             mode = params.get("mode", "auto")

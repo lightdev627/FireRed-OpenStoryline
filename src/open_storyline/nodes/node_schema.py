@@ -369,6 +369,20 @@ class RecommendTransitionInput(BaseInput):
 class RecommendTransitionOutput(BaseInput):
     ...
 
+class AIGCTransitionInput(BaseInput):
+    mode: Literal["auto", "skip", "default"] = Field(
+        default="auto",
+        description=(
+            "auto: Generate AI video transitions between clips; "
+            "skip: Do not use transitions; "
+            "default: Use default transitions."
+        ),
+    )
+
+    user_request: str = Field(
+        default="", 
+        description="User prompt specifying the desired transition effect."
+    )
 
 class RecommendTextInput(BaseInput):
     mode: Literal["auto", "skip", "default"] = Field(
