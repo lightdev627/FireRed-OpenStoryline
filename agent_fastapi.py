@@ -2345,8 +2345,8 @@ async def ws_chat(ws: WebSocket, session_id: str):
                         sess.history.append(user_msg)
                         sess.lc_messages.append(HumanMessage(content=prompt))
 
-                        # if app.state.cfg.developer.developer_mode:
-                        #     print("[LLM_CTX]", session_id, sess.lc_messages)
+                        if app.state.cfg.developer.print_context:
+                            print("[LLM_CTX]", session_id, sess.lc_messages, flush=True)
 
                         client_attached = True
 
