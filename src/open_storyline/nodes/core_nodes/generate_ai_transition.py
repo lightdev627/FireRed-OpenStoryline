@@ -117,6 +117,13 @@ class GenerateAITransitionNode(BaseNode):
         user_request = inputs.get("user_request", "以一镜到底的方式拍摄，场景丝滑过渡")
 
         clip_map = {clip['clip_id']: clip for clip in clips}
+        total_transitions = max(sum(len(group.get("clip_ids", [])) for group in groups) - 1, 0)
+
+        await node_state.mcp_ctx.report_progress(
+            0,
+            total_transitions,
+            "AI transition generation starting...",
+        )
 
         node_cache_dir = self._prepare_output_directory(node_state)
 
@@ -132,6 +139,7 @@ class GenerateAITransitionNode(BaseNode):
             "transition_duration": transition_duration,
             "resolution": resolution,
             "user_request": user_request,
+            "total_transitions": total_transitions,
         }
 
         for i, group in enumerate(groups):
@@ -186,6 +194,12 @@ class GenerateAITransitionNode(BaseNode):
 
         group_clips["groups"] = groups
         group_clips["transition_info"] = transition_info
+        if total_transitions > 0:
+            await node_state.mcp_ctx.report_progress(
+                total_transitions,
+                total_transitions,
+                "AI transition generation finished",
+            )
         return group_clips
     
     async def default_process(self, node_state: NodeState, inputs: Dict[str, Any]) -> Any:
@@ -223,7 +237,6 @@ class GenerateAITransitionNode(BaseNode):
 
         return {"provider": provider, **final_cfg}
 
-
     async def _build_transition_clip(
         self,
         *,
@@ -238,6 +251,7 @@ class GenerateAITransitionNode(BaseNode):
         transition_duration: Optional[int],
         resolution: Optional[str],
         transition_index: int,
+        total_transitions: int,
         user_request: str,
     ) -> Optional[Tuple[str, Dict[str, Any]]]:
         self._raise_if_cancelled(node_state)
@@ -306,6 +320,11 @@ class GenerateAITransitionNode(BaseNode):
             fps = float(generated_clip.fps or 0)
             width, height = map(int, generated_clip.size)
             duration_ms = int(round((generated_clip.duration or effective_duration or self.DEFAULT_TRANSITION_DURATION) * self.SECOND_TO_MILLISECOND))
+            await node_state.mcp_ctx.report_progress(
+                transition_index,
+                total_transitions or transition_index,
+                f"AI transition {transition_index}/{total_transitions or transition_index} generated",
+            )
             node_state.node_summary.info_for_user(
                 f"AI transition for clips <{from_clip_id}, {to_clip_id}> succeeded",
                 preview_urls=[gen_video_path]
