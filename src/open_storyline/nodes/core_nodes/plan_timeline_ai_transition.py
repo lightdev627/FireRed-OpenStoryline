@@ -93,8 +93,8 @@ class PlanTimelineAITransitionNode(BaseNode):
                         ],
                         "source_path": current_clip_info.get("path", ""),
                         "source_window": {
-                            "start": current_clip_source_ref.get("start") if current_clip_kind == "video" else 0,
-                            "end": current_clip_source_ref.get("end") if current_clip_kind == "video" else image_duration_ms,
+                            "start": 0,
+                            "end": current_clip_duration,
                             "duration": current_clip_duration
                         },
                         "timeline_window": {
