@@ -214,6 +214,7 @@ sh build_env.sh
     ```bash
     pip install -r requirements.txt
     ```
+    If you plan to use `storyline.local_asr`, make sure `torchaudio` is installed in the same environment.
 
 ##### B. Windows
 
@@ -228,6 +229,7 @@ sh build_env.sh
     ```bash
     pip install -r requirements.txt
     ```
+    If you plan to use `storyline.local_asr`, make sure `torchaudio` is installed in the same environment.
 
 ## 🚀 Quick Start
 
